@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TransportMode {
+  public
+  own
+}
+
+enum Category {
+  cafe
+  restaurant
+  gaming
+}
+
+model User {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  name      String?
+  age       Int?
+  homeLat   Float?
+  homeLng   Float?
+  homeLabel String?
+  workLat   Float?
+  workLng   Float?
+  workLabel String?
+  transport TransportMode @default(public)
+  interests String[]      @default([])
+  openness  Int           @default(3)
+
+  createdGroups Group[]      @relation("GroupCreator")
+  memberships   Membership[]
+  createdPlans  Plan[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([phone])
+}
+
+model Group {
+  id         String @id @default(cuid())
+  name       String
+  inviteCode String @unique
+
+  createdBy   User   @relation("GroupCreator", fields: [createdById], references: [id])
+  createdById String
+
+  memberships Membership[]
+  plans       Plan[]
+
+  createdAt DateTime @default(now())
+}
+
+model Membership {
+  id       String   @id @default(cuid())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId  String
+  joinedAt DateTime @default(now())
+
+  @@unique([userId, groupId])
+}
+
+model Plan {
+  id           String   @id @default(cuid())
+  group        Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId      String
+  category     Category
+  scheduledFor DateTime?
+  results      Json?
+  createdBy    User     @relation(fields: [createdById], references: [id])
+  createdById  String
+  createdAt    DateTime @default(now())
+}
+
+model OtpChallenge {
+  id        String   @id @default(cuid())
+  phone     String
+  codeHash  String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+}

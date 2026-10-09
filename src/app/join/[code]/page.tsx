@@ -35,7 +35,7 @@ export default function JoinPage({
       .catch(() => setNotFound(true));
     fetch("/api/me")
       .then((r) => r.json())
-      .then((d) => setSignedIn(Boolean(d.user)));
+      .then((d) => setSignedIn(Boolean(d.profile)));
   }, [code]);
 
   async function join() {

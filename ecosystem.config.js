@@ -25,5 +25,14 @@ module.exports = {
         PORT: "3100",
       },
     },
+    {
+      name: "waypoint-outcomes",
+      cwd: __dirname,
+      script: "node_modules/.bin/tsx",
+      args: "scripts/evaluate-outcomes.ts",
+      cron_restart: "30 3 * * *", // 09:00 IST daily
+      autorestart: false,
+      env: { NODE_ENV: "production" },
+    },
   ],
 };

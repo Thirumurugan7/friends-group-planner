@@ -3,16 +3,13 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { Button, ButtonLink } from "@/components/Button";
-import Avatar from "@/components/Avatar";
 import Wordmark from "@/components/Wordmark";
-import { lineFor } from "@/lib/lines";
 import { joinGroup } from "@/lib/api";
 
 interface Preview {
   id: string;
   name: string;
-  inviteCode: string;
-  members: { id: string; name: string | null }[];
+  memberCount: number;
 }
 
 export default function JoinPage({
@@ -23,34 +20,39 @@ export default function JoinPage({
   const { code } = use(params);
   const router = useRouter();
   const [preview, setPreview] = useState<Preview | null>(null);
-  const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     fetch(`/api/join/${code}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((d) => setPreview(d.group))
+      .then((r) => {
+        if (r.status === 401) {
+          router.replace(`/signin?next=${encodeURIComponent(`/join/${code}`)}`);
+          return null;
+        }
+        return r.ok ? r.json() : Promise.reject();
+      })
+      .then((d) => {
+        if (d) {
+          setPreview(d.group);
+        }
+      })
       .catch(() => setNotFound(true));
-    fetch("/api/me")
-      .then((r) => r.json())
-      .then((d) => setSignedIn(Boolean(d.profile)));
-  }, [code]);
+  }, [code, router]);
 
   async function join() {
     if (busy) return;
-    if (!signedIn) {
-      localStorage.setItem("pendingInvite", code);
-      router.push("/signin");
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
       const { groupId } = await joinGroup(code);
       router.push(`/groups/${groupId}`);
     } catch (e) {
+      if ((e as Error).message === "Finish your profile first.") {
+        router.push(`/onboarding?next=${encodeURIComponent(`/join/${code}`)}`);
+        return;
+      }
       setError((e as Error).message);
       setBusy(false);
     }
@@ -85,24 +87,11 @@ export default function JoinPage({
             </h1>
             <p className="mt-3 text-cream-dim">
               {preview
-                ? `${preview.members.length} ${
-                    preview.members.length === 1 ? "friend is" : "friends are"
-                  } already in. Add your details and Waypoint folds you into the next plan.`
+                ? `${preview.memberCount} ${
+                    preview.memberCount === 1 ? "friend is" : "friends are"
+                  } in. Add your details and Waypoint folds you into the next plan.`
                 : "Loading the group…"}
             </p>
-
-            {preview && (
-              <div className="mt-8 flex justify-center -space-x-2">
-                {preview.members.map((m, i) => (
-                  <Avatar
-                    key={m.id}
-                    name={m.name ?? "New friend"}
-                    line={lineFor(i)}
-                    size={44}
-                  />
-                ))}
-              </div>
-            )}
 
             <p className="mt-6 font-mono text-xs text-cream-faint">
               Invite code · {code.toUpperCase()}
@@ -115,11 +104,7 @@ export default function JoinPage({
               size="lg"
               className="mt-6 w-full"
             >
-              {busy
-                ? "Joining…"
-                : signedIn
-                  ? "Join group"
-                  : "Join with your phone"}
+              {busy ? "Joining…" : "Join group"}
             </Button>
             <p className="mt-3 text-xs text-cream-faint">
               Takes a minute. No passwords.

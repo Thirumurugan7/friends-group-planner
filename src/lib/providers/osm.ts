@@ -48,7 +48,12 @@ export class OverpassPlaces implements PlacesProvider {
     const query = `[out:json][timeout:20];(${parts.join("")});out center tags 40;`;
     const res = await this.fetchFn(this.url, {
       method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        accept: "application/json",
+        // Overpass rejects anonymous clients (HTTP 406); identify ourselves.
+        "user-agent": `Waypoint/1.0 (${process.env.NOMINATIM_CONTACT ?? "contact-unset"})`,
+      },
       body: `data=${encodeURIComponent(query)}`,
     });
     if (!res.ok) throw new ProviderError(`overpass HTTP ${res.status}`);

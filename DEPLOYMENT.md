@@ -86,13 +86,9 @@ Secrets are **never committed**. Create `.env.production` on the server (Next
 loads it automatically for `next start`):
 
 ```bash
-cat > REPLACE_APP_DIR/.env.production <<'EOF'
-DATABASE_URL="postgresql://...neon.tech/neondb?sslmode=require&channel_binding=require"
-GROQ_API_KEY="gsk_..."
-APITXT_AUTHKEY="..."
-SESSION_SECRET="PASTE_A_FRESH_64_CHAR_HEX"     # openssl rand -hex 32
-# GOOGLE_MAPS_API_KEY=""   # add when ready
-EOF
+# Start from .env.example and fill in every value (see "Waypoint outings release").
+cp REPLACE_APP_DIR/.env.example REPLACE_APP_DIR/.env.production
+# edit it, generate SESSION_SECRET with `openssl rand -hex 32`, then:
 chmod 600 REPLACE_APP_DIR/.env.production
 ```
 
@@ -110,11 +106,12 @@ just generate the client and ensure the schema is in sync:
 ```bash
 cd REPLACE_APP_DIR
 npx prisma generate
-npx prisma db push        # syncs schema; no-op if already in sync
+npx prisma migrate deploy   # applies committed migrations; never resets data
 ```
 
-> For a stricter workflow later, switch to migration files
-> (`prisma migrate dev` in development, `prisma migrate deploy` on the server).
+> Never use `prisma db push` or `prisma migrate reset` against production by
+> habit. See "Production database switch" below for the one-time move off the
+> old schema.
 
 ## 5. Build and start under PM2
 
@@ -199,10 +196,64 @@ open `https://REPLACE_DOMAIN` — the full flow (OTP → group → AI plan) runs
 cd REPLACE_APP_DIR
 git pull
 npm ci
-npx prisma generate && npx prisma db push
+npx prisma generate && npx prisma migrate deploy
 npm run build
-pm2 restart waypoint
+pm2 restart all   # waypoint and waypoint-outcomes
 ```
+
+---
+
+## Waypoint outings release
+
+Follow these in order when shipping the outings planner.
+
+1. **Environment variables.** Use `.env.example` as the full list (database,
+   `SESSION_SECRET`, `APP_URL`, `APITXT_AUTHKEY`, `GROQ_API_KEY`, Google OAuth,
+   `TMDB_API_KEY`, VAPID keys and contact, `GOOGLE_MAPS_API_KEY`,
+   `NOMINATIM_CONTACT`). Generate push keys with `npx web-push generate-vapid-keys`.
+   Set both `VAPID_PUBLIC_KEY` and `NEXT_PUBLIC_VAPID_PUBLIC_KEY` (same value)
+   **before** `npm run build`: public env vars are baked in at build time. Never
+   set `WAYPOINT_FAKES` in production; the app refuses to run with it.
+2. **Google OAuth.** In Google Cloud Console create an OAuth client (type Web)
+   with the authorised redirect URI
+   `https://REPLACE_DOMAIN/api/auth/google/callback`, and set
+   `APP_URL=https://REPLACE_DOMAIN`. Google sign-in never auto-links by email:
+   people who signed up by phone link Google from their profile page.
+3. **HTTPS is required** for service workers, install-to-home-screen and push.
+4. **Database.** `npx prisma migrate deploy` (see the one-time switch below).
+5. **PM2.** `pm2 start ecosystem.config.js` now starts two apps: `waypoint` (the
+   web server) and `waypoint-outcomes` (a daily 09:00 IST cron that settles
+   outings). The cron app loads `.env.production` explicitly via `--env-file`.
+   Run `pm2 save` afterwards.
+6. **Nominatim usage policy.** Maximum 1 request per second and an identifying
+   User-Agent (set `NOMINATIM_CONTACT`). The onboarding search is debounced by
+   300 ms. Maps show the required OpenStreetMap attribution; keep it.
+7. **Optional Google Maps.** `GOOGLE_MAPS_API_KEY` switches places and routes to
+   Google. Enable "Places API (New)" and "Routes API", and set a budget alert.
+8. **Rotate keys** that were shared in plaintext during the July design (Groq,
+   SMS, database password, session secret).
+
+### Production database switch (destructive, ask first)
+
+The Neon database was created with `prisma db push` and still has the old `Plan`
+table. Existing data is test data and is not carried over. Moving to migrations
+means wiping it.
+
+> WARNING: get explicit approval from the project owner before running this. It
+> deletes all data in the target database. Double-check that `DATABASE_URL`
+> points at the database you intend to wipe.
+
+```bash
+# Only after explicit approval, with the production DATABASE_URL in the environment:
+npx prisma migrate reset --force --skip-seed
+```
+
+To keep data instead, baseline with `npx prisma migrate diff` and
+`npx prisma migrate resolve --applied <name>`, and write a data migration. That
+is separate work.
+
+Tests never use `migrate reset`: the test setup drops and recreates the schema of
+a local `waypoint_test` database and runs `prisma migrate deploy`.
 
 ---
 
@@ -229,7 +280,7 @@ This is real work, not config-only. Tell me if you want it and I'll implement it
 
 | Thing | Value |
 |---|---|
-| PM2 app name | `waypoint` |
+| PM2 app names | `waypoint`, `waypoint-outcomes` (daily cron) |
 | Port | `3100` |
 | Start | `pm2 start ecosystem.config.js` |
 | Env file (server) | `REPLACE_APP_DIR/.env.production` (chmod 600) |

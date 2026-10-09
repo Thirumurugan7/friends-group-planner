@@ -6,7 +6,7 @@ const testDb = env.DATABASE_URL_TEST ?? "postgresql://localhost:5432/waypoint_te
 if (/neon\.tech|amazonaws|supabase/.test(testDb)) {
   throw new Error("DATABASE_URL_TEST points at a hosted DB; refuse to run tests against it.");
 }
-// globalSetup runs `prisma migrate reset` in this process: make sure it targets the test DB.
+// globalSetup drops/recreates the schema and runs `prisma migrate deploy`: make sure it targets the test DB.
 process.env.DATABASE_URL = testDb;
 
 export default defineConfig({

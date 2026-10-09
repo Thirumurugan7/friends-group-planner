@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/Button";
 import Wordmark from "@/components/Wordmark";
 import { api } from "@/lib/api";
+import { safeNext } from "@/lib/safe-next";
+import { clearCaches } from "@/lib/device-cleanup";
 
 const input = "min-h-12 w-full rounded-2xl border border-line bg-surface px-4 text-lg tracking-wide outline-none focus:border-amber";
 
@@ -16,7 +18,7 @@ const GOOGLE_ERRORS: Record<string, string> = {
 function SignIn() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") ?? "/groups";
+  const next = safeNext(params.get("next"));
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<"phone" | "code">("phone");
@@ -45,6 +47,7 @@ function SignIn() {
         ) : (
           <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); run(async () => {
             const r = await api.verifyOtp(phone, code);
+            await clearCaches();
             router.replace(r.needsProfile ? `/onboarding?next=${encodeURIComponent(next)}` : next);
           }); }}>
             <label className="block">

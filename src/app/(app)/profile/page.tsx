@@ -6,6 +6,7 @@ import ProfileForm from "@/components/profile/ProfileForm";
 import { Button } from "@/components/Button";
 import PushToggle from "@/components/shell/PushToggle";
 import { api, type SelfProfile } from "@/lib/api";
+import { clearCaches, unsubscribePushBestEffort } from "@/lib/device-cleanup";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -26,8 +27,9 @@ export default function ProfilePage() {
         )}
         <PushToggle />
         <Button variant="outline" size="sm" onClick={async () => {
+          await unsubscribePushBestEffort();
           await api.signOut();
-          if ("caches" in window) await Promise.all((await caches.keys()).map((k) => caches.delete(k)));
+          await clearCaches();
           router.replace("/signin");
         }}>Sign out</Button>
       </section>

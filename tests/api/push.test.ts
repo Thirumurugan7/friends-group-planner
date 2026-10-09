@@ -8,7 +8,7 @@ import { sendPush } from "@/lib/push";
 import { notifyGroup } from "@/lib/outings/notify";
 import { prisma } from "@/lib/db";
 
-const sub = { endpoint: "https://push.example/abc", keys: { p256dh: "p", auth: "a" } };
+const sub = { endpoint: "https://fcm.googleapis.com/fcm/send/abc", keys: { p256dh: "p", auth: "a" } };
 
 describe("push", () => {
   beforeEach(async () => {
@@ -53,5 +53,29 @@ describe("push", () => {
     await prisma.pushSubscription.create({ data: { userId: a.id, endpoint: "https://p/a", keys: sub.keys } });
     expect(await sendPush([a.id], { title: "t", body: "b", url: "/" })).toBe(0);
     expect(webpush.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it("accepts known push services only", async () => {
+    const u = await makeCompleteUser();
+    await asUser(u.id);
+    for (const endpoint of [
+      "https://updates.push.services.mozilla.com/wpush/v2/x",
+      "https://web.push.apple.com/x",
+      "https://wns2-par02p.notify.windows.com/w/?token=x",
+    ]) {
+      expect((await call(subscribe, { method: "POST", body: { ...sub, endpoint } })).status).toBe(200);
+    }
+    for (const endpoint of [
+      "http://127.0.0.1/x",
+      "https://169.254.169.254/latest/meta-data",
+      "http://fcm.googleapis.com/fcm/send/abc",
+      "https://fcm.googleapis.com.evil.com/x",
+      "https://evilpush.apple.com.attacker.io/x",
+    ]) {
+      const res = await call(subscribe, { method: "POST", body: { ...sub, endpoint } });
+      expect(res.status).toBe(400);
+      expect(res.json.error).toBe("Unsupported push service.");
+    }
+    expect(await prisma.pushSubscription.count()).toBe(3);
   });
 });

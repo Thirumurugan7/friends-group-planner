@@ -33,7 +33,8 @@ export async function GET(req: Request) {
     );
     await createSession(user.id);
     if (linking) return NextResponse.redirect(`${base}/profile?linked=google`);
-    return NextResponse.redirect(`${base}${isProfileComplete(user) ? "/groups" : "/onboarding"}`);
+    // `fresh=1` tells the client to clear any previous user's cached data.
+    return NextResponse.redirect(`${base}${isProfileComplete(user) ? "/groups" : "/onboarding"}?fresh=1`);
   } catch (err) {
     console.error("[google] callback failed:", err instanceof Error ? err.message : "unknown");
     if (!linking && err instanceof HttpError && err.status === 409) {

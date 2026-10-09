@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import InstallPrompt from "./InstallPrompt";
+import FreshSignIn from "./FreshSignIn";
 
 const TABS = [
   { href: "/groups", label: "Groups", icon: "◎" },
@@ -15,6 +16,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
       <div className="mx-auto w-full max-w-md flex-1 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[calc(5rem+env(safe-area-inset-bottom))]">
+        <FreshSignIn />
         <InstallPrompt />
         {children}
       </div>

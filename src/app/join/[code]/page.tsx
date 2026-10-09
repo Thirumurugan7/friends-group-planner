@@ -4,7 +4,7 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { Button, ButtonLink } from "@/components/Button";
 import Wordmark from "@/components/Wordmark";
-import { joinGroup } from "@/lib/api";
+import { api } from "@/lib/api";
 
 interface Preview {
   id: string;
@@ -46,7 +46,7 @@ export default function JoinPage({
     setBusy(true);
     setError(null);
     try {
-      const { groupId } = await joinGroup(code);
+      const { groupId } = await api.join(code);
       router.push(`/groups/${groupId}`);
     } catch (e) {
       if ((e as Error).message === "Finish your profile first.") {

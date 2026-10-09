@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/Button";
 import Wordmark from "@/components/Wordmark";
-import { createGroup } from "@/lib/api";
+import { api } from "@/lib/api";
 
 export default function NewGroup() {
   const router = useRouter();
@@ -17,7 +17,7 @@ export default function NewGroup() {
     setBusy(true);
     setError(null);
     try {
-      const { group } = await createGroup(name.trim());
+      const { group } = await api.createGroup(name.trim());
       router.push(`/groups/${group.id}`);
     } catch (e) {
       setError((e as Error).message);

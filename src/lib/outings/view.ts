@@ -63,7 +63,7 @@ export async function outingView(outingId: string, viewerId: string) {
       homeByReport: opt.homeByReport as unknown as HomeByEntry[],
       narrative: opt.narrative as unknown as Narrative | null,
       approximateTransit: opt.approximateTransit,
-      voteCount: o.votes.filter((v) => v.optionId === opt.id).length,
+      voteCount: o.votes.filter((v) => v.optionId === opt.id && memberIds.includes(v.userId)).length,
       showtimes: opt.showtimes.map((s) => ({ stopIndex: s.stopIndex, startsAt: s.startsAt.toISOString() })),
     })),
     rsvps: o.rsvps

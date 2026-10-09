@@ -7,6 +7,10 @@ import { PUT as rsvp } from "@/app/api/outings/[id]/rsvp/route";
 import { POST as lock } from "@/app/api/outings/[id]/lock/route";
 import { POST as cancel } from "@/app/api/outings/[id]/cancel/route";
 import { POST as showtime } from "@/app/api/outings/[id]/showtime/route";
+import { GET as getOuting } from "@/app/api/outings/[id]/route";
+import { DELETE as removeMember } from "@/app/api/groups/[id]/members/[userId]/route";
+import { POST as join } from "@/app/api/join/[code]/route";
+import { makeCompleteUser } from "../helpers/factories";
 import { prisma } from "@/lib/db";
 import { runRecalc } from "@/lib/outings/run";
 import type { Leg, Stop } from "@/lib/engine/types";
@@ -124,5 +128,50 @@ describe("voting and locking", () => {
     expect((await call(showtime, { method: "POST", params: { id: f.outing.id }, body: { stopIndex: cinemaIdx, time: "18:15" } })).status).toBe(200);
     const after = (await prisma.itineraryOption.findUniqueOrThrow({ where: { id: relaxed.id } })).stops as unknown as Stop[];
     expect(after[cinemaIdx].slot.startTime).toBe("18:15");
+  });
+
+  it("removing a member sticks: old invite dies and their vote stops counting", async () => {
+    const f = await votingFixture();
+    await goingAll(f);
+    await asUser(f.b.id);
+    await call(vote, { method: "PUT", params: { id: f.outing.id }, body: { optionId: f.options[0].id } });
+    await asUser(f.c.id);
+    await call(vote, { method: "PUT", params: { id: f.outing.id }, body: { optionId: f.options[1].id } });
+
+    await asUser(f.admin.id);
+    expect((await call(removeMember, { method: "DELETE", params: { id: f.group.id, userId: f.b.id } })).status).toBe(200);
+
+    await asUser(f.b.id);
+    expect((await call(join, { method: "POST", params: { code: f.group.inviteCode } })).status).toBe(404);
+
+    await asUser(f.admin.id);
+    const view = await call(getOuting, { params: { id: f.outing.id } });
+    const counts = Object.fromEntries(
+      view.json.options.map((o: { id: string; voteCount: number }) => [o.id, o.voteCount])
+    );
+    expect(counts[f.options[0].id]).toBe(0);
+    expect(counts[f.options[1].id]).toBe(1);
+    expect(await prisma.rsvp.count({ where: { outingId: f.outing.id, userId: f.b.id } })).toBe(0);
+
+    const res = await call(lock, { method: "POST", params: { id: f.outing.id }, body: {} });
+    expect(res.status).toBe(200);
+    expect(res.json.optionId).toBe(f.options[1].id);
+  });
+
+  it("votes from non-members never count", async () => {
+    const f = await votingFixture();
+    await goingAll(f);
+    const outsider = await makeCompleteUser();
+    await prisma.vote.create({ data: { outingId: f.outing.id, userId: outsider.id, optionId: f.options[0].id } });
+    await asUser(f.c.id);
+    await call(vote, { method: "PUT", params: { id: f.outing.id }, body: { optionId: f.options[1].id } });
+
+    await asUser(f.admin.id);
+    const view = await call(getOuting, { params: { id: f.outing.id } });
+    const opt0 = view.json.options.find((o: { id: string }) => o.id === f.options[0].id);
+    expect(opt0.voteCount).toBe(0);
+    const res = await call(lock, { method: "POST", params: { id: f.outing.id }, body: {} });
+    expect(res.status).toBe(200);
+    expect(res.json.optionId).toBe(f.options[1].id);
   });
 });

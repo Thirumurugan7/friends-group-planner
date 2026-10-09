@@ -16,7 +16,14 @@ export const POST = route<{ id: string }>(async (req, { params }) => {
 
   const ready = await prisma.itineraryOption.findMany({
     where: { outingId: id, status: "ready" },
-    include: { _count: { select: { votes: true } } },
+    include: {
+      _count: {
+        select: {
+          // Only votes from current group members count.
+          votes: { where: { user: { memberships: { some: { groupId: outing.groupId } } } } },
+        },
+      },
+    },
   });
   if (ready.length === 0) throw new HttpError(400, "There are no ready options to lock.");
 

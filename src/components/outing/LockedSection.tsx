@@ -6,7 +6,7 @@ import { Button } from "@/components/Button";
 import BottomSheet from "@/components/shell/BottomSheet";
 import { api, type OutingView } from "@/lib/api";
 import { formatRupees } from "@/lib/money";
-import { localDate } from "@/lib/time";
+import { checkInOpensAt } from "@/lib/engine/outcome";
 import type { Act } from "./OutingScreen";
 import Timeline from "./Timeline";
 import HomeByList from "./HomeByList";
@@ -28,7 +28,11 @@ export default function LockedSection({ view, act }: { view: OutingView; act: Ac
   const myLegs = option.routes.filter((l) => l.attendeeId === me.id);
   const legs = myLegs.length > 0 ? myLegs : option.routes.filter((l) => l.from !== "home" && l.to !== "home");
   const mine = option.costs.find((c) => c.attendeeId === me.id);
-  const dayReached = outing.date !== null && localDate(new Date()) >= outing.date;
+  const now = new Date();
+  // Check-in opens on the morning of the day; dropping out stays possible until the first stop starts.
+  const checkInOpen = outing.date !== null && now >= checkInOpensAt(outing.date);
+  const firstStart = option.stops[0] ? new Date(option.stops[0].startsAt) : null;
+  const started = firstStart !== null ? now >= firstStart : checkInOpen;
   const dropouts = view.rsvps.filter((r) => r.status === "cancelled");
   const nameOf = (id: string) => members.find((m) => m.id === id)?.name.split(" ")[0] ?? "Someone";
 
@@ -37,7 +41,7 @@ export default function LockedSection({ view, act }: { view: OutingView; act: Ac
       <h2 className="font-display text-xl">Locked in</h2>
       <p className="-mt-4 text-sm text-cream-dim">{THEME_LABEL[option.theme]}</p>
 
-      {me.rsvp === "going" && dayReached && <CheckInCard view={view} act={act} />}
+      {me.rsvp === "going" && checkInOpen && <CheckInCard view={view} act={act} />}
 
       <RouteMap stops={option.stops} legs={legs} />
       <Timeline stops={option.stops} onShowtime={me.rsvp === "going" || me.canManage ? (i) => setShowtimeFor(i) : undefined} />
@@ -61,7 +65,7 @@ export default function LockedSection({ view, act }: { view: OutingView; act: Ac
         </ul>
       )}
 
-      {me.rsvp === "going" && !dayReached && (
+      {me.rsvp === "going" && !started && (
         <Button variant="ghost" onClick={() => setLeaving(true)}>I can&apos;t make it</Button>
       )}
 

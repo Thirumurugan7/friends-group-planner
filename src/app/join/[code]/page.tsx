@@ -1,116 +1,47 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, ButtonLink } from "@/components/Button";
 import Wordmark from "@/components/Wordmark";
-import { api } from "@/lib/api";
+import { Button } from "@/components/Button";
+import { api, ApiError } from "@/lib/api";
 
-interface Preview {
-  id: string;
-  name: string;
-  memberCount: number;
-}
-
-export default function JoinPage({
-  params,
-}: {
-  params: Promise<{ code: string }>;
-}) {
+export default function JoinPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = use(params);
   const router = useRouter();
-  const [preview, setPreview] = useState<Preview | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [group, setGroup] = useState<{ id: string; name: string; memberCount: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notFound, setNotFound] = useState(false);
+  const here = `/join/${code}`;
 
   useEffect(() => {
-    fetch(`/api/join/${code}`)
-      .then((r) => {
-        if (r.status === 401) {
-          router.replace(`/signin?next=${encodeURIComponent(`/join/${code}`)}`);
-          return null;
-        }
-        return r.ok ? r.json() : Promise.reject();
-      })
-      .then((d) => {
-        if (d) {
-          setPreview(d.group);
-        }
-      })
-      .catch(() => setNotFound(true));
-  }, [code, router]);
+    api.previewJoin(code).then((r) => setGroup(r.group)).catch((err) => {
+      if (err instanceof ApiError && err.status === 401) router.replace(`/signin?next=${encodeURIComponent(here)}`);
+      else setError("This invite link doesn't work any more. Ask for a new one.");
+    });
+  }, [code, here, router]);
 
   async function join() {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
     try {
-      const { groupId } = await api.join(code);
-      router.push(`/groups/${groupId}`);
-    } catch (e) {
-      if ((e as Error).message === "Finish your profile first.") {
-        router.push(`/onboarding?next=${encodeURIComponent(`/join/${code}`)}`);
-        return;
-      }
-      setError((e as Error).message);
-      setBusy(false);
+      const r = await api.join(code);
+      router.replace(`/groups/${r.groupId}`);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) router.replace(`/onboarding?next=${encodeURIComponent(here)}`);
+      else setError((err as Error).message);
     }
   }
 
   return (
-    <main className="flex flex-1 flex-col">
-      <header className="mx-auto w-full max-w-md px-6 py-6">
-        <Wordmark />
-      </header>
-
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-6 pb-24 text-center">
-        {notFound ? (
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <Wordmark />
+      <div className="mt-auto space-y-4">
+        {group && (
           <>
-            <h1 className="font-display text-3xl font-bold tracking-tight">
-              This invite isn&apos;t valid
-            </h1>
-            <p className="mt-3 text-cream-dim">
-              The link may be mistyped or the group was removed.
-            </p>
-            <ButtonLink href="/" variant="outline" size="lg" className="mt-8 w-full">
-              Go home
-            </ButtonLink>
-          </>
-        ) : (
-          <>
-            <p className="font-mono text-xs uppercase tracking-widest text-amber">
-              You&apos;re invited
-            </p>
-            <h1 className="mt-3 font-display text-4xl font-bold tracking-tight">
-              Join {preview?.name ?? "…"}
-            </h1>
-            <p className="mt-3 text-cream-dim">
-              {preview
-                ? `${preview.memberCount} ${
-                    preview.memberCount === 1 ? "friend is" : "friends are"
-                  } in. Add your details and Waypoint folds you into the next plan.`
-                : "Loading the group…"}
-            </p>
-
-            <p className="mt-6 font-mono text-xs text-cream-faint">
-              Invite code · {code.toUpperCase()}
-            </p>
-
-            {error && <p className="mt-4 text-sm text-line-coral">{error}</p>}
-            <Button
-              onClick={join}
-              disabled={!preview || busy}
-              size="lg"
-              className="mt-6 w-full"
-            >
-              {busy ? "Joining…" : "Join group"}
-            </Button>
-            <p className="mt-3 text-xs text-cream-faint">
-              Takes a minute. No passwords.
-            </p>
+            <h1 className="font-display text-3xl">{group.name}</h1>
+            <p className="text-cream-dim">{group.memberCount} {group.memberCount === 1 ? "friend is" : "friends are"} already in.</p>
+            <Button size="lg" className="w-full" onClick={join}>Join {group.name}</Button>
           </>
         )}
+        {error && <p role="alert" className="text-line-coral">{error}</p>}
       </div>
     </main>
   );

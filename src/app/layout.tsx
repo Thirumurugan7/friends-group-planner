@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, Instrument_Sans, Space_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -19,6 +19,13 @@ const spaceMono = Space_Mono({
   weight: ["400", "700"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#17162a",
+};
+
 export const metadata: Metadata = {
   title: "Waypoint — plan meetups that work for everyone",
   description:
@@ -35,7 +42,7 @@ export default function RootLayout({
       lang="en"
       className={`${spaceGrotesk.variable} ${instrument.variable} ${spaceMono.variable} h-full`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-dvh flex flex-col overflow-x-hidden">{children}</body>
     </html>
   );
 }

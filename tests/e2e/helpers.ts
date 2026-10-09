@@ -31,7 +31,7 @@ export async function fillProfile(
 }
 
 /** Signs in a brand-new user and completes onboarding. */
-export async function newUser(page: Page, name: string, gender: "Male" | "Female" = "Male", next?: string) {
+export async function newUser(page: Page, name: string, gender: "Male" | "Female" = "Male", next?: string | RegExp) {
   await signIn(page, randomPhone());
   await expect(page).toHaveURL(/\/onboarding/);
   await fillProfile(page, { name, gender, email: `${name.toLowerCase()}${Date.now()}@example.com` });

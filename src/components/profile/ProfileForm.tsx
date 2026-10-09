@@ -25,8 +25,8 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 export default function ProfileForm({
-  initial, submitLabel = "Save profile", onSaved,
-}: { initial: SelfProfile | null; submitLabel?: string; onSaved: (p: SelfProfile) => void }) {
+  initial, submitLabel = "Save profile", onSaved, barClassName,
+}: { initial: SelfProfile | null; submitLabel?: string; onSaved: (p: SelfProfile) => void; barClassName?: string }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
   const [age, setAge] = useState(initial?.age ? String(initial.age) : "");
@@ -135,7 +135,7 @@ export default function ProfileForm({
 
       {error && <p role="alert" className="text-sm text-line-coral">{error}</p>}
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-canvas/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
+      <div className={`fixed inset-x-0 ${barClassName ?? "bottom-0"} z-20 border-t border-line bg-canvas/95 px-4 pt-3 ${barClassName ? "pb-3" : "pb-[max(0.75rem,env(safe-area-inset-bottom))]"} backdrop-blur`}>
         <Button type="submit" size="lg" className="mx-auto w-full max-w-md" disabled={busy}>{busy ? "Saving…" : submitLabel}</Button>
       </div>
     </form>

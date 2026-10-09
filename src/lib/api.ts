@@ -19,7 +19,7 @@ export function verifyOtp(phone: string, code: string) {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ phone, code }),
-  }).then(jsonOrThrow) as Promise<{ ok: true; isNew: boolean }>;
+  }).then(jsonOrThrow) as Promise<{ ok: true; needsProfile: boolean }>;
 }
 
 export function saveProfile(profile: unknown) {

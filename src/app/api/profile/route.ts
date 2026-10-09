@@ -1,37 +1,23 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getUserId } from "@/lib/session";
+import { route, ok, parseBody, requireUser, HttpError } from "@/lib/http";
+import { ProfileSchema } from "@/lib/profile";
+import { selfProfile } from "@/lib/serialize";
 
-export async function PUT(req: Request) {
-  const id = await getUserId();
-  if (!id) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+export const PUT = route(async (req) => {
+  const user = await requireUser();
+  const p = await parseBody(req, ProfileSchema);
 
-  const b = await req.json().catch(() => ({}));
+  const clash = await prisma.user.findUnique({ where: { email: p.email } });
+  if (clash && clash.id !== user.id) throw new HttpError(409, "That email is already used by another account.");
 
-  const name = typeof b.name === "string" ? b.name.trim() : undefined;
-  if (name !== undefined && name.length === 0) {
-    return NextResponse.json({ error: "Name is required." }, { status: 400 });
-  }
-
-  const user = await prisma.user.update({
-    where: { id },
+  const updated = await prisma.user.update({
+    where: { id: user.id },
     data: {
-      name,
-      age: typeof b.age === "number" ? b.age : undefined,
-      homeLat: b.home?.lat,
-      homeLng: b.home?.lng,
-      homeLabel: b.home?.label,
-      workLat: b.work?.lat,
-      workLng: b.work?.lng,
-      workLabel: b.work?.label,
-      transport: b.transport === "own" ? "own" : "public",
-      interests: Array.isArray(b.interests) ? b.interests : undefined,
-      openness:
-        typeof b.openness === "number"
-          ? Math.max(1, Math.min(5, b.openness))
-          : undefined,
+      name: p.name, email: p.email, age: p.age, gender: p.gender, homeBy: p.homeBy,
+      homeLat: p.home.lat, homeLng: p.home.lng, homeLabel: p.home.label,
+      workLat: p.work.lat, workLng: p.work.lng, workLabel: p.work.label,
+      transport: p.transport, interests: p.interests, openness: p.openness,
     },
   });
-
-  return NextResponse.json({ ok: true, user });
-}
+  return ok({ ok: true, profile: selfProfile(updated) });
+});

@@ -48,7 +48,7 @@ export default function SignIn() {
     setBusy(true);
     setError(null);
     try {
-      const { isNew } = await verifyOtp(phone, otp.join(""));
+      const { needsProfile: isNew } = await verifyOtp(phone, otp.join(""));
 
       // If they arrived from an invite link, join that group now.
       const pending = localStorage.getItem("pendingInvite");

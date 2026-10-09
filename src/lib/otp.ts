@@ -1,12 +1,16 @@
 import { createHash } from "node:crypto";
+import { fakesEnabled } from "@/lib/fakes";
 
 const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_ATTEMPTS = 5;
 
 export { OTP_TTL_MS, MAX_ATTEMPTS };
 
+export const OTP_RATE_LIMIT = { max: 3, windowMs: 15 * 60 * 1000 };
+
 /** Four-digit numeric code. */
 export function generateOtp(): string {
+  if (fakesEnabled()) return "1234";
   return String(Math.floor(1000 + Math.random() * 9000));
 }
 
@@ -26,6 +30,7 @@ export function normalizePhone(input: string): string {
  * Real network call — no mock.
  */
 export async function sendOtpSms(phone: string, code: string): Promise<boolean> {
+  if (fakesEnabled()) return true;
   const authkey = process.env.APITXT_AUTHKEY;
   if (!authkey) throw new Error("APITXT_AUTHKEY is not set");
 

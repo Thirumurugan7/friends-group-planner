@@ -1,63 +1,39 @@
-import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { route, ok, parseBody, HttpError } from "@/lib/http";
 import { hashOtp, normalizePhone, MAX_ATTEMPTS } from "@/lib/otp";
+import { toE164India } from "@/lib/phone";
 import { createSession } from "@/lib/session";
+import { isProfileComplete } from "@/lib/profile";
 
-function toE164India(raw: string): string | null {
-  let digits = normalizePhone(raw);
-  if (digits.length === 10) digits = "91" + digits;
-  if (digits.length === 12 && digits.startsWith("91")) return digits;
-  return null;
-}
+const Body = z.object({ phone: z.string(), code: z.string() });
 
-export async function POST(req: Request) {
-  const { phone, code } = await req.json().catch(() => ({}));
-  const mobile = toE164India(String(phone ?? ""));
-  const entered = normalizePhone(String(code ?? ""));
-
-  if (!mobile || entered.length !== 4) {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
-  }
+export const POST = route(async (req) => {
+  const body = await parseBody(req, Body);
+  const mobile = toE164India(body.phone);
+  const entered = normalizePhone(body.code);
+  if (!mobile || entered.length !== 4) throw new HttpError(400, "Invalid request.");
 
   const challenge = await prisma.otpChallenge.findFirst({
     where: { phone: mobile },
     orderBy: { createdAt: "desc" },
   });
-
   if (!challenge || challenge.expiresAt < new Date()) {
-    return NextResponse.json(
-      { error: "This code expired. Request a new one." },
-      { status: 400 }
-    );
+    throw new HttpError(400, "This code expired. Request a new one.");
   }
-
-  if (challenge.attempts >= MAX_ATTEMPTS) {
-    return NextResponse.json(
-      { error: "Too many tries. Request a new code." },
-      { status: 429 }
-    );
-  }
+  if (challenge.attempts >= MAX_ATTEMPTS) throw new HttpError(429, "Too many tries. Request a new code.");
 
   if (challenge.codeHash !== hashOtp(mobile, entered)) {
-    await prisma.otpChallenge.update({
-      where: { id: challenge.id },
-      data: { attempts: { increment: 1 } },
-    });
-    return NextResponse.json({ error: "That code isn't right." }, { status: 401 });
+    await prisma.otpChallenge.update({ where: { id: challenge.id }, data: { attempts: { increment: 1 } } });
+    throw new HttpError(401, "That code isn't right.");
   }
 
-  // Verified — consume the challenge and upsert the user.
-  await prisma.otpChallenge.deleteMany({ where: { phone: mobile } });
+  // Consume this challenge (keep older rows for the rate-limit window).
+  await prisma.otpChallenge.update({ where: { id: challenge.id }, data: { expiresAt: new Date(0) } });
 
-  const existing = await prisma.user.findUnique({ where: { phone: mobile } });
   const user =
-    existing ??
+    (await prisma.user.findUnique({ where: { phone: mobile } })) ??
     (await prisma.user.create({ data: { phone: mobile } }));
-
   await createSession(user.id);
-
-  return NextResponse.json({
-    ok: true,
-    isNew: !existing || !existing.name,
-  });
-}
+  return ok({ ok: true, needsProfile: !isProfileComplete(user) });
+});

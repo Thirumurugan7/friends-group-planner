@@ -1,49 +1,34 @@
-import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/db";
-import {
-  generateOtp,
-  hashOtp,
-  normalizePhone,
-  sendOtpSms,
-  OTP_TTL_MS,
-} from "@/lib/otp";
+import { route, ok, parseBody, HttpError } from "@/lib/http";
+import { generateOtp, hashOtp, sendOtpSms, OTP_TTL_MS, OTP_RATE_LIMIT } from "@/lib/otp";
+import { toE164India } from "@/lib/phone";
 
-function toE164India(raw: string): string | null {
-  let digits = normalizePhone(raw);
-  if (digits.length === 10) digits = "91" + digits;
-  if (digits.length === 12 && digits.startsWith("91")) return digits;
-  return null;
-}
+const Body = z.object({ phone: z.string() });
 
-export async function POST(req: Request) {
-  const { phone } = await req.json().catch(() => ({}));
-  const mobile = toE164India(String(phone ?? ""));
-  if (!mobile) {
-    return NextResponse.json(
-      { error: "Enter a valid 10-digit mobile number." },
-      { status: 400 }
-    );
+export const POST = route(async (req) => {
+  const { phone } = await parseBody(req, Body);
+  const mobile = toE164India(phone);
+  if (!mobile) throw new HttpError(400, "Enter a valid 10-digit mobile number.");
+
+  const since = new Date(Date.now() - OTP_RATE_LIMIT.windowMs);
+  const recent = await prisma.otpChallenge.count({ where: { phone: mobile, createdAt: { gte: since } } });
+  if (recent >= OTP_RATE_LIMIT.max) {
+    throw new HttpError(429, "Too many codes. Try again in a few minutes.");
   }
 
-  const code = generateOtp();
-
-  // One live challenge per phone — clear stale ones first.
-  await prisma.otpChallenge.deleteMany({ where: { phone: mobile } });
-  await prisma.otpChallenge.create({
-    data: {
-      phone: mobile,
-      codeHash: hashOtp(mobile, code),
-      expiresAt: new Date(Date.now() + OTP_TTL_MS),
-    },
+  // Keep recent rows for rate limiting; drop day-old ones.
+  await prisma.otpChallenge.deleteMany({
+    where: { phone: mobile, createdAt: { lt: new Date(Date.now() - 24 * 3600_000) } },
   });
 
-  const sent = await sendOtpSms(mobile, code);
-  if (!sent) {
-    return NextResponse.json(
-      { error: "Couldn't send the code. Try again in a moment." },
-      { status: 502 }
-    );
-  }
+  const code = generateOtp();
+  await prisma.otpChallenge.create({
+    data: { phone: mobile, codeHash: hashOtp(mobile, code), expiresAt: new Date(Date.now() + OTP_TTL_MS) },
+  });
 
-  return NextResponse.json({ ok: true });
-}
+  if (!(await sendOtpSms(mobile, code))) {
+    throw new HttpError(502, "Couldn't send the code. Try again in a moment.");
+  }
+  return ok({ ok: true });
+});

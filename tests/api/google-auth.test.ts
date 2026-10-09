@@ -24,11 +24,17 @@ describe("resolveGoogleUser", () => {
     expect(b.id).toBe(a.id);
   });
 
-  it("links to an existing account with the same email", async () => {
+  it("refuses to auto-link by email to an existing account", async () => {
     const existing = await makeCompleteUser({ email: "friend@gmail.com" });
-    const u = await resolveGoogleUser(claims, null);
-    expect(u.id).toBe(existing.id);
-    expect(u.googleId).toBe("g-123");
+    await expect(resolveGoogleUser(claims, null)).rejects.toThrow(/already used/);
+    expect(await prisma.user.count()).toBe(1);
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: existing.id } })).googleId).toBeNull();
+  });
+
+  it("refuses linking when the current user has a different googleId", async () => {
+    const me = await makeUser();
+    await prisma.user.update({ where: { id: me.id }, data: { googleId: "other-sub" } });
+    await expect(resolveGoogleUser(claims, me.id)).rejects.toThrow(/different Google account/);
   });
 
   it("links to the signed-in user when linking from profile", async () => {

@@ -29,6 +29,9 @@ export async function resolveGoogleUser(c: GoogleClaims, currentUserId: string |
       throw new HttpError(409, "That Google account is linked to a different user.");
     }
     const me = await prisma.user.findUniqueOrThrow({ where: { id: currentUserId } });
+    if (me.googleId && me.googleId !== c.sub) {
+      throw new HttpError(409, "Your account is already linked to a different Google account.");
+    }
     const emailOwner = await prisma.user.findUnique({ where: { email } });
     return prisma.user.update({
       where: { id: currentUserId },
@@ -42,7 +45,10 @@ export async function resolveGoogleUser(c: GoogleClaims, currentUserId: string |
   if (byGoogle) return byGoogle;
 
   const byEmail = await prisma.user.findUnique({ where: { email } });
-  if (byEmail) return prisma.user.update({ where: { id: byEmail.id }, data: { googleId: c.sub } });
+  if (byEmail) {
+    // Profile emails are unverified, so never auto-link by email (pre-hijack risk).
+    throw new HttpError(409, "That email is already used by another account. Sign in with your phone, then link Google from your profile.");
+  }
 
   return prisma.user.create({ data: { googleId: c.sub, email, name: c.name ?? null } });
 }

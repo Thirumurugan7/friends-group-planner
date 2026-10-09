@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { decodeIdToken } from "arctic";
+import { HttpError } from "@/lib/http";
 import { google, resolveGoogleUser } from "@/lib/google-auth";
 import { createSession, getUserId } from "@/lib/session";
 import { isProfileComplete } from "@/lib/profile";
@@ -34,7 +35,10 @@ export async function GET(req: Request) {
     if (linking) return NextResponse.redirect(`${base}/profile?linked=google`);
     return NextResponse.redirect(`${base}${isProfileComplete(user) ? "/groups" : "/onboarding"}`);
   } catch (err) {
-    console.error("[google] callback failed", err);
+    console.error("[google] callback failed:", err instanceof Error ? err.message : "unknown");
+    if (!linking && err instanceof HttpError && err.status === 409) {
+      return NextResponse.redirect(`${base}/signin?error=google-email`);
+    }
     return fail;
   }
 }

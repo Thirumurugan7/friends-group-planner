@@ -1,0 +1,4 @@
+{ "results": [
+  { "id": 9001, "title": "Monsoon Heist", "genre_ids": [28, 53], "vote_average": 7.4, "poster_path": "/abc.jpg" },
+  { "id": 9002, "title": "Chai & Chaos", "genre_ids": [35], "vote_average": 6.9, "poster_path": null }
+] }

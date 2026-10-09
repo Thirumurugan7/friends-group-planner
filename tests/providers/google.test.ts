@@ -6,7 +6,7 @@ import { placesContract, routesContract } from "./contract";
 import { GooglePlaces, GoogleRoutes } from "@/lib/providers/google";
 
 const jsonFetch = (body: unknown, status = 200) =>
-  vi.fn(async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+  vi.fn<typeof fetch>(async () => new Response(JSON.stringify(body), { status }));
 
 describe("GooglePlaces", () => {
   placesContract(() => new GooglePlaces("k", jsonFetch(places)));
@@ -20,7 +20,7 @@ describe("GooglePlaces", () => {
   it("sends the key and field mask", async () => {
     const f = jsonFetch(places);
     await new GooglePlaces("secret", f).search({ lat: 1, lng: 1 }, 1000, "cinema");
-    const [, init] = (f as any).mock.calls[0];
+    const init = f.mock.calls[0][1] as { headers: Record<string, string>; body: string };
     expect(init.headers["X-Goog-Api-Key"]).toBe("secret");
     expect(JSON.parse(init.body).includedTypes).toEqual(["movie_theater"]);
   });

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { Prisma } from "@prisma/client";
+import type { Leg } from "@/lib/engine/types";
 import * as attendees from "@/lib/outings/attendees";
 import { runGeneration } from "@/lib/outings/run";
 import { resetDb } from "../helpers/db";
@@ -92,17 +93,17 @@ describe("generate options", () => {
     await asUser(admin.id);
     await call(generate, { method: "POST", params: { id: outing.id } });
     await asUser(b.id);
-    const view = (await call(getOuting, { params: { id: outing.id } })).json;
+    const view = (await call(getOuting, { params: { id: outing.id } })).json as { options: { routes: Leg[] }[] };
     const s = JSON.stringify(view);
     expect(s).not.toContain("12.90123");
     expect(s).not.toContain("77.60123");
     const adminHomeLegs = view.options[0].routes.filter(
-      (l: any) => l.attendeeId === admin.id && (l.from === "home" || l.to === "home")
+      (l) => l.attendeeId === admin.id && (l.from === "home" || l.to === "home")
     );
     expect(adminHomeLegs.length).toBe(2);
-    expect(adminHomeLegs.every((l: any) => l.route.geometry === null)).toBe(true);
-    const myHomeLeg = view.options[0].routes.find((l: any) => l.attendeeId === b.id && l.from === "home");
-    expect(myHomeLeg.route.geometry).not.toBeNull();
+    expect(adminHomeLegs.every((l) => l.route.geometry === null)).toBe(true);
+    const myHomeLeg = view.options[0].routes.find((l) => l.attendeeId === b.id && l.from === "home");
+    expect(myHomeLeg?.route.geometry).not.toBeNull();
   });
 
   it("outsiders get 404", async () => {

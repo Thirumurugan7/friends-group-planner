@@ -11,7 +11,9 @@ export class OsrmRoutes implements RoutesProvider {
     private base = process.env.OSRM_URL ?? "https://router.project-osrm.org"
   ) {}
 
-  async route(from: LatLng, to: LatLng, mode: Transport, _departAt: Date): Promise<RouteResult> {
+  // OSRM is time-independent; departAt is accepted to satisfy the RoutesProvider interface.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async route(from: LatLng, to: LatLng, mode: Transport, _departAt?: Date): Promise<RouteResult> {
     const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
     const res = await this.fetchFn(`${this.base}/route/v1/driving/${coords}?overview=simplified&geometries=geojson`);
     if (!res.ok) throw new ProviderError(`osrm HTTP ${res.status}`);

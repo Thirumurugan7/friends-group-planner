@@ -58,8 +58,9 @@ describe("resolveGoogleUser", () => {
 describe("google callback", () => {
   it("redirects to sign-in on state mismatch", async () => {
     await asUser(null);
-    (globalThis as any).__jar.set("g_state", "expected");
-    (globalThis as any).__jar.set("g_verifier", "v");
+    const jar = (globalThis as unknown as { __jar: Map<string, string> }).__jar;
+    jar.set("g_state", "expected");
+    jar.set("g_verifier", "v");
     const res = await callback(new Request("http://localhost:3200/api/auth/google/callback?code=c&state=wrong"));
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toContain("/signin?error=google");

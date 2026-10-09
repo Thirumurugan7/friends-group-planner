@@ -28,6 +28,8 @@ async function markFree(page: Page, url: string, day: string) {
 }
 
 test("full outing: dates → options → vote → lock → dropout → showtime → check-in → expenses", async ({ browser }) => {
+  // Long two-user journey; dev-server first compiles push it near the default 60s.
+  test.slow();
   const { a, b } = await groupWithFriend(browser);
   const day = isoDay(2);
 

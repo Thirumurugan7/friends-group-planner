@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
 import ConvergenceMap from "@/components/ConvergenceMap";
 import Avatar from "@/components/Avatar";
 import Wordmark from "@/components/Wordmark";
-import { CATEGORIES } from "@/lib/mock";
 import { MEETING_POINT, type DisplayMember } from "@/lib/display";
 import { transportLabel } from "@/lib/format";
 
@@ -117,35 +115,6 @@ export default function GroupHome({ group }: { group: GroupView }) {
                     </p>
                   </div>
                 </div>
-              ))}
-            </div>
-
-            {/* Plan something */}
-            <h2 className="mt-8 font-display text-lg font-semibold">
-              Plan something
-            </h2>
-            <p className="mt-1 text-sm text-cream-dim">
-              Pick a vibe. We&apos;ll rank the fairest spots for everyone.
-            </p>
-            <div className="mt-4 grid grid-cols-3 gap-3">
-              {CATEGORIES.map((c, i) => (
-                <motion.div
-                  key={c.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.05 * i }}
-                >
-                  <Link
-                    href={`/groups/${group.id}/plan/${c.id}`}
-                    className="flex h-32 flex-col items-center justify-center gap-2 rounded-[var(--radius-card)] border border-line bg-surface/60 text-center transition-all hover:-translate-y-0.5 hover:border-amber hover:bg-surface"
-                  >
-                    <span className="text-3xl">{c.emoji}</span>
-                    <span className="font-display font-medium">{c.label}</span>
-                    <span className="px-1 text-[11px] leading-tight text-cream-faint">
-                      {c.hint}
-                    </span>
-                  </Link>
-                </motion.div>
               ))}
             </div>
           </div>

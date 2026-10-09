@@ -12,49 +12,83 @@ enum TransportMode {
   own
 }
 
-enum Category {
-  cafe
-  restaurant
-  gaming
+enum Gender {
+  male
+  female
+  non_binary
+  prefer_not_to_say
+}
+
+enum Role {
+  admin
+  member
+}
+
+enum OutingStatus {
+  collecting
+  voting
+  locked
+  completed
+  failed
+  cancelled
+}
+
+enum RsvpStatus {
+  going
+  maybe
+  no
+  cancelled
+}
+
+enum OptionStatus {
+  generating
+  ready
+  failed
 }
 
 model User {
-  id        String   @id @default(cuid())
-  phone     String   @unique
+  id        String         @id @default(cuid())
+  phone     String?        @unique
+  email     String?        @unique // required by onboarding; nullable until then
+  googleId  String?        @unique
   name      String?
   age       Int?
+  gender    Gender?
+  homeBy    String? // "HH:MM" city-local
   homeLat   Float?
   homeLng   Float?
   homeLabel String?
   workLat   Float?
   workLng   Float?
   workLabel String?
-  transport TransportMode @default(public)
-  interests String[]      @default([])
-  openness  Int           @default(3)
+  transport TransportMode  @default(public)
+  interests String[]       @default([])
+  openness  Int            @default(3)
 
-  createdGroups Group[]      @relation("GroupCreator")
-  memberships   Membership[]
-  createdPlans  Plan[]
+  createdGroups  Group[]            @relation("GroupCreator")
+  memberships    Membership[]
+  createdOutings Outing[]           @relation("OutingCreator")
+  availability   Availability[]
+  rsvps          Rsvp[]
+  votes          Vote[]
+  checkIns       CheckIn[]
+  expensesPaid   Expense[]
+  showtimes      ShowtimeOverride[]
+  pushSubs       PushSubscription[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@index([phone])
 }
 
 model Group {
-  id         String @id @default(cuid())
-  name       String
-  inviteCode String @unique
-
-  createdBy   User   @relation("GroupCreator", fields: [createdById], references: [id])
+  id          String       @id @default(cuid())
+  name        String
+  inviteCode  String       @unique
+  createdBy   User         @relation("GroupCreator", fields: [createdById], references: [id])
   createdById String
-
   memberships Membership[]
-  plans       Plan[]
-
-  createdAt DateTime @default(now())
+  outings     Outing[]
+  createdAt   DateTime     @default(now())
 }
 
 model Membership {
@@ -63,21 +97,10 @@ model Membership {
   userId   String
   group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
   groupId  String
+  role     Role     @default(member)
   joinedAt DateTime @default(now())
 
   @@unique([userId, groupId])
-}
-
-model Plan {
-  id           String   @id @default(cuid())
-  group        Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  groupId      String
-  category     Category
-  scheduledFor DateTime?
-  results      Json?
-  createdBy    User     @relation(fields: [createdById], references: [id])
-  createdById  String
-  createdAt    DateTime @default(now())
 }
 
 model OtpChallenge {
@@ -88,5 +111,145 @@ model OtpChallenge {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
-  @@index([phone])
+  @@index([phone, createdAt])
+}
+
+model Outing {
+  id             String       @id @default(cuid())
+  group          Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupId        String
+  createdBy      User         @relation("OutingCreator", fields: [createdById], references: [id])
+  createdById    String
+  title          String
+  rangeStart     String // "YYYY-MM-DD"
+  rangeEnd       String // "YYYY-MM-DD"
+  date           String? // "YYYY-MM-DD" once confirmed
+  groupHomeBy    String? // "HH:MM"
+  status         OutingStatus @default(collecting)
+  cancelReason   String?
+  lockedOptionId String?
+
+  availability Availability[]
+  rsvps        Rsvp[]
+  options      ItineraryOption[]
+  votes        Vote[]
+  checkIns     CheckIn[]
+  expenses     Expense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([groupId, createdAt])
+}
+
+model Availability {
+  id       String  @id @default(cuid())
+  outing   Outing  @relation(fields: [outingId], references: [id], onDelete: Cascade)
+  outingId String
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  date     String // "YYYY-MM-DD"
+  free     Boolean
+
+  @@unique([outingId, userId, date])
+}
+
+model Rsvp {
+  id           String     @id @default(cuid())
+  outing       Outing     @relation(fields: [outingId], references: [id], onDelete: Cascade)
+  outingId     String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  status       RsvpStatus
+  cancelledAt  DateTime?
+  cancelReason String?
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([outingId, userId])
+}
+
+model ItineraryOption {
+  id                 String       @id @default(cuid())
+  outing             Outing       @relation(fields: [outingId], references: [id], onDelete: Cascade)
+  outingId           String
+  theme              String
+  status             OptionStatus @default(generating)
+  progress           String?
+  error              String?
+  stops              Json         @default("[]")
+  routes             Json         @default("[]")
+  costs              Json         @default("[]")
+  homeByReport       Json         @default("[]")
+  narrative          Json?
+  approximateTransit Boolean      @default(false)
+  votes              Vote[]
+  showtimes          ShowtimeOverride[]
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+}
+
+model Vote {
+  id       String          @id @default(cuid())
+  outing   Outing          @relation(fields: [outingId], references: [id], onDelete: Cascade)
+  outingId String
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  option   ItineraryOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  optionId String
+
+  @@unique([outingId, userId])
+}
+
+model ShowtimeOverride {
+  id          String          @id @default(cuid())
+  option      ItineraryOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  optionId    String
+  stopIndex   Int
+  startsAt    DateTime
+  enteredBy   User            @relation(fields: [enteredById], references: [id])
+  enteredById String
+  createdAt   DateTime        @default(now())
+
+  @@unique([optionId, stopIndex])
+}
+
+model CheckIn {
+  id        String   @id @default(cuid())
+  outing    Outing   @relation(fields: [outingId], references: [id], onDelete: Cascade)
+  outingId  String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  attended  Boolean
+  createdAt DateTime @default(now())
+
+  @@unique([outingId, userId])
+}
+
+model Expense {
+  id         String   @id @default(cuid())
+  outing     Outing   @relation(fields: [outingId], references: [id], onDelete: Cascade)
+  outingId   String
+  paidBy     User     @relation(fields: [paidById], references: [id])
+  paidById   String
+  amount     Int // paise
+  note       String
+  stopIndex  Int?
+  splitAmong String[]
+  createdAt  DateTime @default(now())
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  endpoint  String   @unique
+  keys      Json
+  createdAt DateTime @default(now())
+}
+
+model RouteCache {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  result    Json
+  expiresAt DateTime
 }

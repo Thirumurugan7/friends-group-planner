@@ -44,11 +44,3 @@ export function joinGroup(code: string) {
     groupId: string;
   }>;
 }
-
-export function generatePlan(groupId: string, category: string) {
-  return fetch(`/api/groups/${groupId}/plan`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ category }),
-  }).then(jsonOrThrow);
-}

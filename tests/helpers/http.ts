@@ -7,7 +7,8 @@ export async function asUser(userId: string | null) {
   if (userId) await createSession(userId);
 }
 
-type Handler = (req: Request, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Handler = (req: Request, ctx: { params: Promise<any> }) => Promise<Response>;
 
 export async function call(
   handler: Handler,

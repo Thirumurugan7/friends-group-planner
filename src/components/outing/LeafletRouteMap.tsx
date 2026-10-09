@@ -9,8 +9,8 @@ export default function LeafletRouteMap({ stops, legs }: { stops: Stop[]; legs: 
   const lat = stops.reduce((s, x) => s + x.venue.lat, 0) / stops.length;
   const lng = stops.reduce((s, x) => s + x.venue.lng, 0) / stops.length;
   return (
-    <MapContainer center={[lat, lng]} zoom={12} className="h-56 w-full rounded-[var(--radius-card)]" attributionControl={false} scrollWheelZoom={false}>
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+    <MapContainer center={[lat, lng]} zoom={12} className="h-56 w-full rounded-[var(--radius-card)]" scrollWheelZoom={false}>
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' />
       {legs.filter((l) => l.route.geometry).map((l, i) => (
         <Polyline key={i} positions={l.route.geometry!} pathOptions={{ color: "#ffb454", weight: 4, opacity: 0.8 }} />
       ))}

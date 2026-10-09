@@ -27,8 +27,8 @@ export default function LeafletPicker({
   lat, lng, onPick,
 }: { lat: number; lng: number; onPick: (lat: number, lng: number) => void }) {
   return (
-    <MapContainer center={[lat, lng]} zoom={15} className="h-44 w-full rounded-2xl" attributionControl={false}>
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+    <MapContainer center={[lat, lng]} zoom={15} className="h-44 w-full rounded-2xl">
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' />
       <Marker
         position={[lat, lng]}
         icon={pin}

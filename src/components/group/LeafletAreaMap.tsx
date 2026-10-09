@@ -14,8 +14,8 @@ export default function LeafletAreaMap({ points }: { points: AreaPoint[] }) {
   const lat = points.reduce((s, p) => s + p.lat, 0) / points.length;
   const lng = points.reduce((s, p) => s + p.lng, 0) / points.length;
   return (
-    <MapContainer center={[lat, lng]} zoom={11} className="h-48 w-full rounded-[var(--radius-card)]" attributionControl={false} scrollWheelZoom={false}>
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+    <MapContainer center={[lat, lng]} zoom={11} className="h-48 w-full rounded-[var(--radius-card)]" scrollWheelZoom={false}>
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' />
       {points.map((p) => (
         // Radius ~1km circles: these are areas, not addresses.
         <CircleMarker key={p.id} center={[p.lat, p.lng]} radius={14} pathOptions={{ color: HEX[p.line], fillOpacity: 0.35 }}>

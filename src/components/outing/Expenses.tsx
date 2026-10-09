@@ -45,7 +45,7 @@ export default function Expenses({ view, act }: { view: OutingView; act: Act }) 
             <span className="flex items-center gap-2">
               {formatRupees(e.amount)}
               {(e.paidById === me.id || me.role === "admin") && (
-                <button aria-label={`Delete ${e.note}`} className="min-h-11 px-2 text-cream-faint" onClick={() => act(() => api.deleteExpense(outing.id, e.id))}>✕</button>
+                <button aria-label={`Delete ${e.note}`} className="min-h-11 min-w-11 px-2 text-cream-faint" onClick={() => act(() => api.deleteExpense(outing.id, e.id))}>✕</button>
               )}
             </span>
           </li>

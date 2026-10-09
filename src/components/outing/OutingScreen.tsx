@@ -78,7 +78,12 @@ export default function OutingScreen({ id }: { id: string }) {
         {offline && <p role="status" className="mt-2 text-xs text-amber">Offline — showing the last saved plan.</p>}
       </header>
 
-      {error && <p role="alert" className="mb-4 rounded-2xl border border-line-coral px-4 py-3 text-sm text-line-coral">{error}</p>}
+      {error && (
+        <button type="button" role="alert" onClick={() => setError(null)}
+          className="fixed inset-x-4 top-[max(1rem,env(safe-area-inset-top))] z-[60] mx-auto max-w-md rounded-2xl border border-line-coral bg-canvas px-4 py-3 text-left text-sm text-line-coral shadow-lg">
+          {error}
+        </button>
+      )}
 
       {outing.status === "collecting" && <CollectSection view={view} act={act} />}
       {outing.status === "voting" && <VotingSection view={view} act={act} />}

@@ -10,6 +10,21 @@ import { notifyGroup } from "./notify";
 const j = (v: unknown) => v as Prisma.InputJsonValue;
 
 export async function runGeneration(outingId: string, providers: Providers = getProviders()): Promise<void> {
+  try {
+    await generateAll(outingId, providers);
+  } catch (err) {
+    console.error("[generate] run failed", outingId, err);
+    await prisma.itineraryOption
+      .updateMany({
+        where: { outingId, status: "generating" },
+        data: { status: "failed", progress: null, error: "The planner couldn't finish this option. Try again." },
+      })
+      .catch(() => {});
+    throw err;
+  }
+}
+
+async function generateAll(outingId: string, providers: Providers): Promise<void> {
   const outing = await prisma.outing.findUniqueOrThrow({ where: { id: outingId } });
   const attendees = await loadAttendees(outing, "free");
   const options = await prisma.itineraryOption.findMany({ where: { outingId, status: "generating" } });
@@ -49,9 +64,12 @@ export async function runGeneration(outingId: string, providers: Providers = get
     })
   );
 
-  await notifyGroup(outing.groupId, null, {
-    title: outing.title, body: "Plan options are ready — vote now.", url: `/outings/${outing.id}`,
-  });
+  const readyCount = await prisma.itineraryOption.count({ where: { outingId, status: "ready" } });
+  if (readyCount > 0) {
+    await notifyGroup(outing.groupId, null, {
+      title: outing.title, body: "Plan options are ready — vote now.", url: `/outings/${outing.id}`,
+    });
+  }
 }
 
 export async function runRecalc(optionId: string, providers: Providers = getProviders()): Promise<void> {

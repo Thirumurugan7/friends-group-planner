@@ -1,4 +1,7 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { Prisma } from "@prisma/client";
+import * as attendees from "@/lib/outings/attendees";
+import { runGeneration } from "@/lib/outings/run";
 import { resetDb } from "../helpers/db";
 import { asUser, call } from "../helpers/http";
 import { makeCompleteUser } from "../helpers/factories";
@@ -9,6 +12,29 @@ import { prisma } from "@/lib/db";
 
 describe("generate options", () => {
   beforeEach(resetDb);
+
+  it("maps a serialization conflict to 409 and creates nothing", async () => {
+    const { outing, admin } = await outingFixture({ confirm: true });
+    await asUser(admin.id);
+    const original = prisma.$transaction.bind(prisma);
+    const spy = vi.spyOn(prisma, "$transaction").mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("conflict", { code: "P2034", clientVersion: "x" })
+    );
+    const res = await call(generate, { method: "POST", params: { id: outing.id } });
+    spy.mockImplementation(original as never); // restore real behaviour for later tests
+    expect(res.status).toBe(409);
+    expect(await prisma.itineraryOption.count({ where: { outingId: outing.id } })).toBe(0);
+  });
+
+  it("marks stuck generating options failed when the run throws", async () => {
+    const { outing } = await outingFixture({ confirm: true });
+    await prisma.itineraryOption.create({ data: { outingId: outing.id, theme: "relaxed", status: "generating" } });
+    const spy = vi.spyOn(attendees, "loadAttendees").mockRejectedValueOnce(new Error("boom"));
+    await expect(runGeneration(outing.id)).rejects.toThrow("boom");
+    spy.mockRestore();
+    const opts = await prisma.itineraryOption.findMany({ where: { outingId: outing.id } });
+    expect(opts.map((o) => o.status)).toEqual(["failed"]);
+  });
 
   it("needs a confirmed date", async () => {
     const { outing, admin } = await outingFixture();

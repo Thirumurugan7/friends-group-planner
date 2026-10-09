@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { route, ok, requireUser, requireOutingMember, HttpError } from "@/lib/http";
 import { requireOrganiser, requireStatus } from "@/lib/outings/permissions";
@@ -22,7 +23,8 @@ export const POST = route<{ id: string }>(async (_req, { params }) => {
     throw new HttpError(400, "At least 2 people with complete profiles need to be free on that date.");
   }
 
-  const optionIds = await prisma.$transaction(
+  const optionIds = await prisma
+    .$transaction(
     async (tx) => {
       const again = await tx.itineraryOption.count({ where: { outingId: id, status: "generating" } });
       if (again > 0) throw new HttpError(409, "Options are already being generated.");
@@ -34,7 +36,13 @@ export const POST = route<{ id: string }>(async (_req, { params }) => {
       return created.map((o) => o.id);
     },
     { isolationLevel: "Serializable" }
-  );
+    )
+    .catch((err) => {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2034") {
+        throw new HttpError(409, "Options are already being generated.");
+      }
+      throw err;
+    });
 
   await runInBackground(() => runGeneration(id));
   return ok({ optionIds }, 202);

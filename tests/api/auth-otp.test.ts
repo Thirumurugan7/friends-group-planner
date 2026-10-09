@@ -43,4 +43,50 @@ describe("phone OTP", () => {
     const res = await call(verifyOtp, { method: "POST", body: { phone: "9876522222", code: "1234" } });
     expect(res.status).toBe(400);
   });
+  it("caps parallel wrong guesses at 5 and then locks", async () => {
+    await call(requestOtp, { method: "POST", body: { phone: "9876533333" } });
+    const results = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        call(verifyOtp, { method: "POST", body: { phone: "9876533333", code: "0000" } })
+      )
+    );
+    const wrong = results.filter((r) => r.status === 401).length;
+    const locked = results.filter((r) => r.status === 429).length;
+    expect(wrong).toBeLessThanOrEqual(5);
+    expect(wrong + locked).toBe(20);
+    const res = await call(verifyOtp, { method: "POST", body: { phone: "9876533333", code: "1234" } });
+    expect(res.status).toBe(429);
+  });
+
+  it("a code can be used only once even in parallel", async () => {
+    await prisma.user.create({ data: { phone: "919876544444" } });
+    await call(requestOtp, { method: "POST", body: { phone: "9876544444" } });
+    const results = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        call(verifyOtp, { method: "POST", body: { phone: "9876544444", code: "1234" } })
+      )
+    );
+    expect(results.filter((r) => r.status === 200).length).toBe(1);
+    expect(results.filter((r) => r.status === 400 || r.status === 429).length).toBe(9);
+  });
+
+  it("rate limits parallel code requests to 3", async () => {
+    const results = await Promise.all(
+      Array.from({ length: 6 }, () => call(requestOtp, { method: "POST", body: { phone: "9876555555" } }))
+    );
+    expect(results.filter((r) => r.status === 200).length).toBeLessThanOrEqual(3);
+    expect(await prisma.otpChallenge.count({ where: { phone: "919876555555" } })).toBeLessThanOrEqual(3);
+  });
+
+  it("caps codes at 10 per phone per day", async () => {
+    const old = new Date(Date.now() - 2 * 3600_000);
+    await prisma.otpChallenge.createMany({
+      data: Array.from({ length: 10 }, () => ({
+        phone: "919876566666", codeHash: "x", expiresAt: old, createdAt: old,
+      })),
+    });
+    const res = await call(requestOtp, { method: "POST", body: { phone: "9876566666" } });
+    expect(res.status).toBe(429);
+    expect(res.json.error).toBe("Too many codes today. Try again tomorrow.");
+  });
 });

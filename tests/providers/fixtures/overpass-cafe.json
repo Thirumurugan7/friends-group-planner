@@ -1,0 +1,9 @@
+{
+  "elements": [
+    { "type": "node", "id": 101, "lat": 12.9721, "lon": 77.6405,
+      "tags": { "amenity": "cafe", "name": "Third Wave Coffee", "opening_hours": "Mo-Su 08:00-23:00", "addr:street": "100 Feet Road" } },
+    { "type": "way", "id": 202, "center": { "lat": 12.9701, "lon": 77.6399 },
+      "tags": { "amenity": "cafe", "name": "Dyu Art Cafe", "opening_hours": "Tu-Su 10:00-22:30; Mo off" } },
+    { "type": "node", "id": 303, "lat": 12.9711, "lon": 77.6411, "tags": { "amenity": "cafe" } }
+  ]
+}

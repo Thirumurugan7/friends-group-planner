@@ -27,7 +27,7 @@
 - Route cache TTL: 24 hours.
 - Mobile-first: design at 375px; tap targets ≥ 44px; safe-area insets respected.
 - `WAYPOINT_FAKES=1` (fixed OTP `1234`, fake providers) must be impossible in `NODE_ENV=production`.
-- Commit after every task with the attribution line `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+- Commit after every task with a plain, one-line commit message.
 
 ## Review Focus
 
@@ -440,10 +440,27 @@ export default defineConfig({
 import { execSync } from "node:child_process";
 
 export default function setup() {
-  execSync("npx prisma migrate reset --force --skip-seed", {
-    stdio: "inherit",
-    env: { ...process.env },
+  const url = process.env.DATABASE_URL ?? "";
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error("Test DATABASE_URL is not a valid URL; refusing to reset.");
+  }
+  const db = parsed.pathname.replace(/^\//, "");
+  if (!["localhost", "127.0.0.1"].includes(parsed.hostname) || db !== "waypoint_test") {
+    throw new Error(
+      `Refusing to reset ${parsed.hostname}/${db}: tests only run against local waypoint_test.`
+    );
+  }
+  const env = { ...process.env, DATABASE_URL: url };
+  // Drop + recreate the schema, then apply migrations (avoids `migrate reset`).
+  execSync(`npx prisma db execute --url "${url}" --stdin`, {
+    input: "DROP SCHEMA public CASCADE; CREATE SCHEMA public;",
+    stdio: ["pipe", "inherit", "inherit"],
+    env,
   });
+  execSync("npx prisma migrate deploy", { stdio: "inherit", env });
 }
 ```
 
@@ -629,9 +646,7 @@ NOMINATIM_CONTACT="you@example.com"
 
 ```bash
 git add -A
-git commit -m "chore: test infrastructure and outings schema
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "chore: test infrastructure and outings schema"
 ```
 
 ---
@@ -751,9 +766,7 @@ export function datesInRange(start: string, end: string): string[] {
 
 ```bash
 git add src/lib/time.ts tests/unit/time.test.ts
-git commit -m "feat: city-local time helpers
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: city-local time helpers"
 ```
 
 ---
@@ -1075,9 +1088,7 @@ describe("guards", () => {
 
 ```bash
 git add src/lib/http.ts src/lib/serialize.ts src/lib/profile.ts tests/unit/profile.test.ts tests/api/guards.test.ts
-git commit -m "feat: route wrapper, membership guards, public serializers
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: route wrapper, membership guards, public serializers"
 ```
 
 ---
@@ -1411,9 +1422,7 @@ export const GET = route(async () => {
 
 ```bash
 git add -A
-git commit -m "feat: OTP rate limiting, fakes guard, validated profile API
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: OTP rate limiting, fakes guard, validated profile API"
 ```
 
 ---
@@ -1636,9 +1645,7 @@ describe("google callback", () => {
 
 ```bash
 git add -A
-git commit -m "feat: Google sign-in with account linking
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: Google sign-in with account linking"
 ```
 
 ---
@@ -1712,9 +1719,7 @@ export function effectiveDeadline(
 
 ```bash
 git add src/lib/deadline.ts tests/unit/deadline.test.ts
-git commit -m "feat: effective home-by deadline rule
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: effective home-by deadline rule"
 ```
 
 ---
@@ -1998,9 +2003,7 @@ Update `src/app/join/[code]/page.tsx`: it previously rendered `group.members`; r
 
 ```bash
 git add -A
-git commit -m "feat: group roles, invite rotation, member removal, private group detail
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: group roles, invite rotation, member removal, private group detail"
 ```
 
 ---
@@ -2189,9 +2192,7 @@ export function decodePolyline(encoded: string): [number, number][] {
 
 ```bash
 git add src/lib/engine tests/unit/geo.test.ts
-git commit -m "feat: engine types and geo helpers
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: engine types and geo helpers"
 ```
 
 ---
@@ -2499,9 +2500,7 @@ describe("provider plumbing", () => {
 
 ```bash
 git add -A
-git commit -m "feat: provider interfaces, fakes, route cache, fallback
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: provider interfaces, fakes, route cache, fallback"
 ```
 
 ---
@@ -2821,9 +2820,7 @@ export class TmdbMovies implements MoviesProvider {
 
 ```bash
 git add -A
-git commit -m "feat: OSM places, OSRM routes, TMDB movies providers
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: OSM places, OSRM routes, TMDB movies providers"
 ```
 
 ---
@@ -3228,9 +3225,7 @@ Note: the live Google Routes test uses a fixed 2026-10-18 departure; if that dat
 
 ```bash
 git add -A
-git commit -m "feat: Google places/routes, Groq LLM provider, provider selection
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: Google places/routes, Groq LLM provider, provider selection"
 ```
 
 ---
@@ -3402,9 +3397,7 @@ export function meetingArea(attendees: Pick<Attendee, "home" | "transport">[]): 
 
 ```bash
 git add src/lib/engine/pickDate.ts src/lib/engine/meetingArea.ts tests/unit/pickDate.test.ts tests/unit/meetingArea.test.ts
-git commit -m "feat: date ranking and fair meeting area
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: date ranking and fair meeting area"
 ```
 
 ---
@@ -3574,9 +3567,7 @@ export async function sketchDay(
 
 ```bash
 git add src/lib/engine/sketchDay.ts tests/unit/sketchDay.test.ts
-git commit -m "feat: AI day sketch with sanitizing and template fallback
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: AI day sketch with sanitizing and template fallback"
 ```
 
 ---
@@ -3777,9 +3768,7 @@ export async function fillSlot(args: {
 
 ```bash
 git add src/lib/engine/fillSlot.ts tests/unit/fillSlot.test.ts
-git commit -m "feat: venue scoring, slot filling, film pairing
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: venue scoring, slot filling, film pairing"
 ```
 
 ---
@@ -3983,9 +3972,7 @@ export function repair(stops: Stop[]): Stop[] | null {
 
 ```bash
 git add src/lib/engine/routeAll.ts src/lib/engine/homeBy.ts tests/unit/routeAll.test.ts tests/unit/homeBy.test.ts
-git commit -m "feat: per-person routing, home-by check, repair
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: per-person routing, home-by check, repair"
 ```
 
 ---
@@ -4358,9 +4345,7 @@ export async function recalculateOption(input: {
 
 ```bash
 git add src/lib/engine tests/unit
-git commit -m "feat: cost estimates, grounded narration, option orchestrator
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: cost estimates, grounded narration, option orchestrator"
 ```
 
 ---
@@ -4547,9 +4532,7 @@ Check the "nets multiple bills" test: a pays 600 split a,b → a +300, b −300;
 
 ```bash
 git add src/lib/engine/settle.ts src/lib/engine/outcome.ts tests/unit/settle.test.ts tests/unit/outcome.test.ts
-git commit -m "feat: settle-up and outing outcome rules
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: settle-up and outing outcome rules"
 ```
 
 ---
@@ -5003,9 +4986,7 @@ export const POST = route<{ id: string }>(async (req, { params }) => {
 
 ```bash
 git add -A
-git commit -m "feat: outing creation, availability, date confirmation, detail view
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: outing creation, availability, date confirmation, detail view"
 ```
 
 ---
@@ -5188,9 +5169,7 @@ export const DELETE = route(async (req) => {
 
 ```bash
 git add -A
-git commit -m "feat: web push sending and subscriptions
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: web push sending and subscriptions"
 ```
 
 ---
@@ -5482,9 +5461,7 @@ Note: the 409 check and the transaction are not atomic. Two simultaneous request
 
 ```bash
 git add -A
-git commit -m "feat: generate itinerary options in the background
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: generate itinerary options in the background"
 ```
 
 ---
@@ -5858,9 +5835,7 @@ export const POST = route<{ id: string }>(async (req, { params }) => {
 
 ```bash
 git add -A
-git commit -m "feat: voting, RSVPs, locking, cancellation, showtime overrides
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: voting, RSVPs, locking, cancellation, showtime overrides"
 ```
 
 ---
@@ -6087,9 +6062,7 @@ In `ecosystem.config.js`, add a second app to the `apps` array:
 
 ```bash
 git add -A
-git commit -m "feat: check-ins, outcome evaluation, daily outcome job
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: check-ins, outcome evaluation, daily outcome job"
 ```
 
 ---
@@ -6237,9 +6210,7 @@ export const DELETE = route<{ id: string; expenseId: string }>(async (_req, { pa
 
 ```bash
 git add -A
-git commit -m "feat: expenses and settle-up
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: expenses and settle-up"
 ```
 
 ---
@@ -6337,13 +6308,12 @@ export default defineConfig({
 `tests/e2e/global-setup.ts`:
 
 ```ts
-import { execSync } from "node:child_process";
+import resetTestDb from "../global-setup";
 
+// Same guarded reset as the Vitest suite (local waypoint_test only, no `migrate reset`).
 export default function setup() {
-  execSync("npx prisma migrate reset --force --skip-seed", {
-    stdio: "inherit",
-    env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL_TEST },
-  });
+  process.env.DATABASE_URL = process.env.DATABASE_URL_TEST;
+  resetTestDb();
 }
 ```
 
@@ -7022,9 +6992,7 @@ export default function OnboardingPage() {
 
 ```bash
 git add -A
-git commit -m "feat: Playwright setup, sign-in, onboarding with map picker
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: Playwright setup, sign-in, onboarding with map picker"
 ```
 
 ---
@@ -7642,9 +7610,7 @@ Expected: `clean`. If `src/lib/types.ts` is now only used by `SwotPanel`, `Avata
 
 ```bash
 git add -A
-git commit -m "feat: mobile app shell, profile, groups, group home, join flow
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: mobile app shell, profile, groups, group home, join flow"
 ```
 
 ---
@@ -8626,9 +8592,7 @@ E2E check: Meera is going, Kiran cancelled, so the default split is `[Meera]`; t
 
 ```bash
 git add -A
-git commit -m "feat: mobile outing screens — availability, options, voting, locked plan, check-in, expenses
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: mobile outing screens — availability, options, voting, locked plan, check-in, expenses"
 ```
 
 ---
@@ -9065,9 +9029,7 @@ Also run Lighthouse's PWA/installability check manually on a production build (`
 
 ```bash
 git add -A
-git commit -m "feat: PWA manifest, icons, service worker, offline itinerary, install prompt, push toggle
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "feat: PWA manifest, icons, service worker, offline itinerary, install prompt, push toggle"
 ```
 
 ---
@@ -9166,9 +9128,7 @@ Then a manual pass on a real phone (or Chrome device mode at 375×812) against `
 
 ```bash
 git add -A
-git commit -m "chore: CI, deployment guide, README
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
+git commit -m "chore: CI, deployment guide, README"
 ```
 
 ---

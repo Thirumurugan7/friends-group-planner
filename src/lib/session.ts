@@ -1,10 +1,9 @@
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
+import { appSecret } from "@/lib/secret";
 
 const COOKIE = "wp_session";
-const secret = new TextEncoder().encode(
-  process.env.SESSION_SECRET ?? "dev-insecure-secret-change-me"
-);
+const secret = () => new TextEncoder().encode(appSecret("dev-insecure-secret-change-me"));
 
 /** Issue a session cookie for a user. */
 export async function createSession(userId: string) {
@@ -12,7 +11,7 @@ export async function createSession(userId: string) {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("30d")
-    .sign(secret);
+    .sign(secret());
 
   const store = await cookies();
   store.set(COOKIE, token, {
@@ -30,7 +29,7 @@ export async function getUserId(): Promise<string | null> {
   const token = store.get(COOKIE)?.value;
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(token, secret());
     return (payload.sub as string) ?? null;
   } catch {
     return null;

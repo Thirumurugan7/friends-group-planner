@@ -1,27 +1,35 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getUserId } from "@/lib/session";
+import { route, ok, requireUser, requireMember } from "@/lib/http";
+import { publicMember } from "@/lib/serialize";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const userId = await getUserId();
-  if (!userId)
-    return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-
+export const GET = route<{ id: string }>(async (_req, { params }) => {
+  const user = await requireUser();
   const { id } = await params;
-  const group = await prisma.group.findUnique({
-    where: { id },
-    include: { memberships: { include: { user: true }, orderBy: { joinedAt: "asc" } } },
+  const { group, membership } = await requireMember(id, user.id);
+
+  const memberships = await prisma.membership.findMany({
+    where: { groupId: id },
+    include: { user: true },
+    orderBy: { joinedAt: "asc" },
+  });
+  const outings = await prisma.outing.findMany({
+    where: { groupId: id },
+    orderBy: { createdAt: "desc" },
+    include: { rsvps: { where: { status: "going" }, select: { id: true } } },
   });
 
-  if (!group)
-    return NextResponse.json({ error: "Group not found." }, { status: 404 });
-
-  const isMember = group.memberships.some((m) => m.userId === userId);
-  if (!isMember)
-    return NextResponse.json({ error: "You're not in this group." }, { status: 403 });
-
-  return NextResponse.json({ group });
-}
+  return ok({
+    group: {
+      id: group.id,
+      name: group.name,
+      inviteCode: group.inviteCode,
+      myRole: membership.role,
+      members: memberships.map((m) => publicMember(m.user, m.role)),
+    },
+    outings: outings.map((o) => ({
+      id: o.id, title: o.title, status: o.status, date: o.date,
+      rangeStart: o.rangeStart, rangeEnd: o.rangeEnd,
+      goingCount: o.rsvps.length, createdAt: o.createdAt,
+    })),
+  });
+});

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Space_Grotesk, Instrument_Sans, Space_Mono } from "next/font/google";
 import "./globals.css";
+import ServiceWorker from "@/components/shell/ServiceWorker";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -30,6 +31,8 @@ export const metadata: Metadata = {
   title: "Waypoint — plan meetups that work for everyone",
   description:
     "Friends scattered across the city? Waypoint finds the fair meeting spot, with routes and travel times for everyone.",
+  appleWebApp: { capable: true, title: "Waypoint", statusBarStyle: "black-translucent" },
+  icons: { apple: "/pwa-icon/180" },
 };
 
 export default function RootLayout({
@@ -42,7 +45,7 @@ export default function RootLayout({
       lang="en"
       className={`${spaceGrotesk.variable} ${instrument.variable} ${spaceMono.variable} h-full`}
     >
-      <body className="min-h-dvh flex flex-col overflow-x-hidden">{children}</body>
+      <body className="min-h-dvh flex flex-col overflow-x-hidden">{children}<ServiceWorker /></body>
     </html>
   );
 }

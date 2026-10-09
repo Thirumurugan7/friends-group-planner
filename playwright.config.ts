@@ -25,6 +25,7 @@ export default defineConfig({
       SESSION_SECRET: "e2e-secret",
       APP_URL: "http://localhost:3200",
       NEXT_PUBLIC_VAPID_PUBLIC_KEY: "",
+      NEXT_PUBLIC_SW_DEV: "1",
     },
   },
 });

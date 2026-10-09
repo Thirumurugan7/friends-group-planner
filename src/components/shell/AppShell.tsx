@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import InstallPrompt from "./InstallPrompt";
 
 const TABS = [
   { href: "/groups", label: "Groups", icon: "◎" },
@@ -14,6 +15,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col">
       <div className="mx-auto w-full max-w-md flex-1 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[calc(5rem+env(safe-area-inset-bottom))]">
+        <InstallPrompt />
         {children}
       </div>
       <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-canvas-deep/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">

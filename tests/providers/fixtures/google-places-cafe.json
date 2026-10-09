@@ -1,0 +1,6 @@
+{ "places": [
+  { "id": "ChIJ1", "displayName": { "text": "Third Wave Coffee" }, "location": { "latitude": 12.9721, "longitude": 77.6405 },
+    "rating": 4.3, "priceLevel": "PRICE_LEVEL_MODERATE", "formattedAddress": "100 Feet Rd, Indiranagar",
+    "regularOpeningHours": { "periods": [ { "open": { "day": 0, "hour": 8, "minute": 0 }, "close": { "day": 0, "hour": 23, "minute": 0 } } ] } },
+  { "id": "ChIJ2", "displayName": { "text": "Dyu Art Cafe" }, "location": { "latitude": 12.9701, "longitude": 77.6399 }, "rating": 4.6 }
+] }

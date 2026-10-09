@@ -18,7 +18,7 @@ export class TmdbMovies implements MoviesProvider {
     url.searchParams.set("language", "en-IN");
     url.searchParams.set("page", "1");
     url.searchParams.set("api_key", this.apiKey);
-    const res = await this.fetchFn(url);
+    const res = await this.fetchFn(url, { signal: AbortSignal.timeout(15_000) });
     if (!res.ok) throw new ProviderError(`tmdb HTTP ${res.status}`);
     const body = (await res.json()) as {
       results?: { id: number; title: string; genre_ids: number[]; vote_average: number; poster_path: string | null }[];

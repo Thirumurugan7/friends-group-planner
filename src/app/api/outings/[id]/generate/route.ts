@@ -7,6 +7,8 @@ import { runGeneration } from "@/lib/outings/run";
 import { runInBackground } from "@/lib/background";
 import { THEMES } from "@/lib/engine/types";
 
+const STALE_MS = 10 * 60 * 1000;
+
 export const POST = route<{ id: string }>(async (_req, { params }) => {
   const user = await requireUser();
   const { id } = await params;
@@ -14,6 +16,12 @@ export const POST = route<{ id: string }>(async (_req, { params }) => {
   requireOrganiser(outing, user.id, membership.role);
   requireStatus(outing, "collecting", "voting");
   if (!outing.date) throw new HttpError(400, "Confirm a date first.");
+
+  // A run that died (restart/hang) leaves options stuck "generating" — release them after 10 minutes.
+  await prisma.itineraryOption.updateMany({
+    where: { outingId: id, status: "generating", updatedAt: { lt: new Date(Date.now() - STALE_MS) } },
+    data: { status: "failed", progress: null, error: "The planner timed out. Try again." },
+  });
 
   const busy = await prisma.itineraryOption.count({ where: { outingId: id, status: "generating" } });
   if (busy > 0) throw new HttpError(409, "Options are already being generated.");

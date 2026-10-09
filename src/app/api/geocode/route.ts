@@ -22,11 +22,17 @@ export const GET = route(async (req) => {
   url.searchParams.set("q", q);
   url.searchParams.set("countrycodes", "in");
   url.searchParams.set("limit", "5");
-  const res = await fetch(url, {
-    headers: { "User-Agent": `Waypoint/1.0 (${process.env.NOMINATIM_CONTACT ?? "admin@example.com"})` },
-  });
-  if (!res.ok) return ok({ results: [] });
-  const rows = (await res.json()) as { display_name: string; lat: string; lon: string }[];
+  let rows: { display_name: string; lat: string; lon: string }[];
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": `Waypoint/1.0 (${process.env.NOMINATIM_CONTACT ?? "admin@example.com"})` },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return ok({ results: [] });
+    rows = (await res.json()) as typeof rows;
+  } catch {
+    return ok({ results: [] });
+  }
   return ok({
     results: rows.map((r) => ({
       label: r.display_name.split(",").slice(0, 2).map((s) => s.trim()).join(", "),

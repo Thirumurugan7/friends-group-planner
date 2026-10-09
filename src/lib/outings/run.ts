@@ -64,6 +64,9 @@ async function generateAll(outingId: string, providers: Providers): Promise<void
     })
   );
 
+  // The outing may have been cancelled (or locked) while we were generating.
+  const current = await prisma.outing.findUnique({ where: { id: outingId }, select: { status: true } });
+  if (current?.status !== "voting") return;
   const readyCount = await prisma.itineraryOption.count({ where: { outingId, status: "ready" } });
   if (readyCount > 0) {
     await notifyGroup(outing.groupId, null, {

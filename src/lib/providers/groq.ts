@@ -7,7 +7,7 @@ export interface GroqLike {
 
 export class GroqLlm implements LlmProvider {
   constructor(
-    private client: GroqLike = new Groq({ apiKey: process.env.GROQ_API_KEY }) as unknown as GroqLike,
+    private client: GroqLike = new Groq({ apiKey: process.env.GROQ_API_KEY, timeout: 30_000 }) as unknown as GroqLike,
     private model = "llama-3.3-70b-versatile"
   ) {}
 

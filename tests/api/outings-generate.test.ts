@@ -77,6 +77,15 @@ describe("generate options", () => {
     expect(await prisma.itineraryOption.count({ where: { outingId: outing.id } })).toBe(1);
   });
 
+  it("sweeps options stuck generating for over 10 minutes and regenerates", async () => {
+    const { outing, admin } = await outingFixture({ confirm: true });
+    const stuck = await prisma.itineraryOption.create({ data: { outingId: outing.id, theme: "relaxed", status: "generating" } });
+    await prisma.itineraryOption.update({ where: { id: stuck.id }, data: { updatedAt: new Date(Date.now() - 11 * 60_000) } });
+    await asUser(admin.id);
+    expect((await call(generate, { method: "POST", params: { id: outing.id } })).status).toBe(202);
+    expect(await prisma.itineraryOption.count({ where: { outingId: outing.id, id: stuck.id } })).toBe(0);
+  });
+
   it("regenerating replaces previous options and votes", async () => {
     const { outing, admin } = await outingFixture({ confirm: true });
     await asUser(admin.id);

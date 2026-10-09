@@ -48,6 +48,7 @@ export class OverpassPlaces implements PlacesProvider {
     const query = `[out:json][timeout:20];(${parts.join("")});out center tags 40;`;
     const res = await this.fetchFn(this.url, {
       method: "POST",
+      signal: AbortSignal.timeout(15_000),
       headers: {
         "content-type": "application/x-www-form-urlencoded",
         accept: "application/json",

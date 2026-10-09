@@ -42,6 +42,7 @@ export class GooglePlaces implements PlacesProvider {
   async search(center: LatLng, radiusM: number, kind: SlotKind): Promise<Venue[]> {
     const res = await this.fetchFn("https://places.googleapis.com/v1/places:searchNearby", {
       method: "POST",
+      signal: AbortSignal.timeout(15_000),
       headers: {
         "content-type": "application/json",
         "X-Goog-Api-Key": this.apiKey,
@@ -88,6 +89,7 @@ export class GoogleRoutes implements RoutesProvider {
     const transit = mode === "public";
     const res = await this.fetchFn("https://routes.googleapis.com/directions/v2:computeRoutes", {
       method: "POST",
+      signal: AbortSignal.timeout(15_000),
       headers: {
         "content-type": "application/json",
         "X-Goog-Api-Key": this.apiKey,

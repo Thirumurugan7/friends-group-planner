@@ -15,7 +15,9 @@ export class OsrmRoutes implements RoutesProvider {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async route(from: LatLng, to: LatLng, mode: Transport, _departAt?: Date): Promise<RouteResult> {
     const coords = `${from.lng},${from.lat};${to.lng},${to.lat}`;
-    const res = await this.fetchFn(`${this.base}/route/v1/driving/${coords}?overview=simplified&geometries=geojson`);
+    const res = await this.fetchFn(`${this.base}/route/v1/driving/${coords}?overview=simplified&geometries=geojson`, {
+      signal: AbortSignal.timeout(15_000),
+    });
     if (!res.ok) throw new ProviderError(`osrm HTTP ${res.status}`);
     const body = (await res.json()) as {
       code: string;

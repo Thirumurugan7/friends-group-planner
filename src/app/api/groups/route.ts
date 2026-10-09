@@ -1,51 +1,44 @@
-import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/db";
-import { getUserId } from "@/lib/session";
+import { route, ok, parseBody, requireUser, requireCompleteUser, HttpError } from "@/lib/http";
 import { makeInviteCode } from "@/lib/auth";
 
-// List the current user's groups.
-export async function GET() {
-  const id = await getUserId();
-  if (!id) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-
-  const groups = await prisma.group.findMany({
-    where: { memberships: { some: { userId: id } } },
-    include: { memberships: { include: { user: true } } },
-    orderBy: { createdAt: "desc" },
+export const GET = route(async () => {
+  const user = await requireUser();
+  const memberships = await prisma.membership.findMany({
+    where: { userId: user.id },
+    include: { group: { include: { _count: { select: { memberships: true } } } } },
+    orderBy: { joinedAt: "desc" },
   });
+  return ok({
+    groups: memberships.map((m) => ({
+      id: m.group.id,
+      name: m.group.name,
+      memberCount: m.group._count.memberships,
+      role: m.role,
+    })),
+  });
+});
 
-  return NextResponse.json({ groups });
-}
+const Create = z.object({ name: z.string().trim().min(1, "Name your group.").max(60) });
 
-// Create a group; the creator is auto-added as the first member.
-export async function POST(req: Request) {
-  const id = await getUserId();
-  if (!id) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-
-  const { name } = await req.json().catch(() => ({}));
-  const groupName = typeof name === "string" ? name.trim() : "";
-  if (!groupName) {
-    return NextResponse.json({ error: "Name your group." }, { status: 400 });
-  }
-
-  // Retry a couple of times in the unlikely event of an invite-code collision.
+export const POST = route(async (req) => {
+  const user = await requireCompleteUser();
+  const { name } = await parseBody(req, Create);
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const group = await prisma.group.create({
         data: {
-          name: groupName,
+          name,
           inviteCode: makeInviteCode(),
-          createdById: id,
-          memberships: { create: { userId: id } },
+          createdById: user.id,
+          memberships: { create: { userId: user.id, role: "admin" } },
         },
       });
-      return NextResponse.json({ ok: true, group });
+      return ok({ ok: true, group: { id: group.id } });
     } catch {
-      // likely a unique-constraint clash on inviteCode — try again
+      // invite code collision — retry
     }
   }
-  return NextResponse.json(
-    { error: "Couldn't create the group. Try again." },
-    { status: 500 }
-  );
-}
+  throw new HttpError(500, "Couldn't create the group. Try again.");
+});

@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Waypoint
 
-## Getting Started
+Waypoint is a mobile-first outings planner for groups of friends. Members join a
+group, set their home area and a "home by" time, and mark availability for an
+outing. Waypoint then builds three itinerary options (places, movies, routes,
+home-by checks and cost estimates), the group votes, the organiser locks one in,
+and afterwards people check in and settle expenses. It installs as a PWA, works
+offline for the locked plan, and sends web push notifications. Exact home
+coordinates never leave the server.
 
-First, run the development server:
+Built with Next.js 16, React 19, Prisma and PostgreSQL. Maps and routing use
+OpenStreetMap, Nominatim and OSRM by default, or Google when a key is set.
+
+## Local setup
 
 ```bash
+npm install
+createdb waypoint_test            # local Postgres, used by tests
+cp .env.example .env.local        # then fill in the values
+npx prisma migrate dev
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`DATABASE_URL_TEST` must point at a local database named `waypoint_test`. The
+test suite wipes its schema, and refuses to run against anything else.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Offline development
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Set `WAYPOINT_FAKES=1` to use fake maps, places and AI, with a fixed OTP of
+`1234`. It is for development and tests only and is refused in production.
 
-## Learn More
+## Tests
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm test            # unit, contract, integration and privacy tests (Vitest)
+npm run test:e2e    # Playwright end-to-end specs (needs a local waypoint_test DB)
+npm run test:live   # hits public OSM/OSRM (and Google if a key is set)
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+CI (`.github/workflows/ci.yml`) runs type-check, lint, tests, build and E2E.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for PM2 + Nginx, environment variables,
+Google OAuth, HTTPS and database migration steps.

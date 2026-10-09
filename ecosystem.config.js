@@ -6,7 +6,8 @@
 //   pm2 save
 //
 // Secrets are NOT stored here — they live in `.env.production` on the server
-// (gitignored), which `next start` loads automatically at runtime.
+// (gitignored), which `next start` loads automatically at runtime. The
+// waypoint-outcomes cron app loads `.env.production` explicitly via --env-file.
 
 module.exports = {
   apps: [
@@ -24,6 +25,16 @@ module.exports = {
         NODE_ENV: "production",
         PORT: "3100",
       },
+    },
+    {
+      name: "waypoint-outcomes",
+      cwd: __dirname,
+      script: "node_modules/.bin/tsx",
+      // Unlike `next start`, tsx does not auto-load .env.production, so load it explicitly.
+      args: "--env-file=.env.production scripts/evaluate-outcomes.ts",
+      cron_restart: "30 3 * * *", // 09:00 IST daily
+      autorestart: false,
+      env: { NODE_ENV: "production" },
     },
   ],
 };

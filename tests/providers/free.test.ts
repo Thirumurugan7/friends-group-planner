@@ -21,7 +21,52 @@ describe("OverpassPlaces", () => {
   });
 
   it("throws ProviderError on HTTP errors", async () => {
-    await expect(new OverpassPlaces(jsonFetch({}, 504)).search({ lat: 1, lng: 1 }, 1000, "cafe")).rejects.toThrow(/overpass/i);
+    const osm = new OverpassPlaces(jsonFetch({}, 504), undefined, { sleep: async () => {} });
+    await expect(osm.search({ lat: 1, lng: 1 }, 1000, "cafe")).rejects.toThrow(/overpass/i);
+  });
+
+  it("shares one request between identical concurrent searches", async () => {
+    let calls = 0;
+    const fetchFn = (async () => {
+      calls++;
+      return new Response(JSON.stringify(overpass));
+    }) as unknown as typeof fetch;
+    const osm = new OverpassPlaces(fetchFn);
+    const [a, b] = await Promise.all([
+      osm.search({ lat: 12.97, lng: 77.64 }, 3000, "cafe"),
+      osm.search({ lat: 12.97, lng: 77.64 }, 3000, "cafe"),
+    ]);
+    await osm.search({ lat: 12.97, lng: 77.64 }, 3000, "cafe");
+    expect(calls).toBe(1);
+    expect(a).toEqual(b);
+  });
+
+  it("sends one request at a time", async () => {
+    let inFlight = 0;
+    let peak = 0;
+    const fetchFn = (async () => {
+      peak = Math.max(peak, ++inFlight);
+      await new Promise((r) => setTimeout(r, 5));
+      inFlight--;
+      return new Response(JSON.stringify(overpass));
+    }) as unknown as typeof fetch;
+    const osm = new OverpassPlaces(fetchFn);
+    await Promise.all((["cafe", "cinema", "mall", "park"] as const).map((k) => osm.search({ lat: 1, lng: 1 }, 1000, k)));
+    expect(peak).toBe(1);
+  });
+
+  it("waits and retries when Overpass is busy (429/504)", async () => {
+    const statuses = [429, 504, 200];
+    const waits: number[] = [];
+    const fetchFn = (async () => {
+      const status = statuses.shift()!;
+      return new Response(JSON.stringify(status === 200 ? overpass : {}), { status });
+    }) as unknown as typeof fetch;
+    const osm = new OverpassPlaces(fetchFn, undefined, { sleep: async (ms) => void waits.push(ms) });
+    const v = await osm.search({ lat: 12.97, lng: 77.64 }, 3000, "cafe");
+    expect(v).toHaveLength(2);
+    expect(waits).toHaveLength(2);
+    expect(waits[1]).toBeGreaterThan(waits[0]);
   });
 
   it("parses simple opening hours only", () => {

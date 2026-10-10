@@ -11,10 +11,13 @@ import type { Providers } from "./types";
 
 export type { Providers } from "./types";
 
+// Shared across requests so its queue and cache throttle the whole server, not one call.
+let overpass: OverpassPlaces | null = null;
+
 export function getProviders(): Providers {
   if (fakesEnabled()) return fakeProviders();
 
-  const osm = new OverpassPlaces();
+  const osm = (overpass ??= new OverpassPlaces());
   const osrm = new OsrmRoutes();
   const key = process.env.GOOGLE_MAPS_API_KEY;
 

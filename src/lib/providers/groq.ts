@@ -8,7 +8,7 @@ export interface GroqLike {
 export class GroqLlm implements LlmProvider {
   constructor(
     private client: GroqLike = new Groq({ apiKey: process.env.GROQ_API_KEY, timeout: 30_000 }) as unknown as GroqLike,
-    private model = "llama-3.3-70b-versatile"
+    private model = "openai/gpt-oss-120b"
   ) {}
 
   async json<T>(req: LlmRequest<T>): Promise<T> {

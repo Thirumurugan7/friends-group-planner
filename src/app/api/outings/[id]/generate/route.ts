@@ -9,6 +9,9 @@ import { THEMES } from "@/lib/engine/types";
 
 const STALE_MS = 10 * 60 * 1000;
 
+// Generation runs in after(), which on Vercel is bounded by this route's max duration.
+export const maxDuration = 300;
+
 export const POST = route<{ id: string }>(async (_req, { params }) => {
   const user = await requireUser();
   const { id } = await params;

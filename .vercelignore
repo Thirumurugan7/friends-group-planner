@@ -1,0 +1,9 @@
+.worktrees
+.superpowers
+.next
+node_modules
+.env*
+!.env.example
+test-results
+playwright-report
+coverage

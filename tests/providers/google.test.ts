@@ -24,6 +24,30 @@ describe("GooglePlaces", () => {
     expect(init.headers["X-Goog-Api-Key"]).toBe("secret");
     expect(JSON.parse(init.body).includedTypes).toEqual(["movie_theater"]);
   });
+
+  it("falls back to text search when the nearby daily quota is exhausted", async () => {
+    const f = vi.fn<typeof fetch>(async (url) =>
+      String(url).endsWith(":searchNearby")
+        ? new Response(JSON.stringify({ error: { status: "RESOURCE_EXHAUSTED" } }), { status: 429 })
+        : new Response(JSON.stringify(places)),
+    );
+    const g = new GooglePlaces("k", f);
+    const v = await g.search({ lat: 12.97, lng: 77.64 }, 3000, "cafe");
+    expect(v[0]).toMatchObject({ id: "google-ChIJ1", source: "google" });
+    const body = JSON.parse((f.mock.calls[1][1] as { body: string }).body);
+    expect(String(f.mock.calls[1][0])).toMatch(/:searchText$/);
+    expect(body).toMatchObject({ textQuery: "cafe", includedType: "cafe" });
+
+    await g.search({ lat: 12.97, lng: 77.64 }, 3000, "park");
+    expect(f.mock.calls.map(([u]) => String(u).split(":").pop())).toEqual(["searchNearby", "searchText", "searchText"]);
+  });
+
+  it("drops text-search results outside the radius", async () => {
+    const f = vi.fn<typeof fetch>(async (url) =>
+      String(url).endsWith(":searchNearby") ? new Response("{}", { status: 429 }) : new Response(JSON.stringify(places)),
+    );
+    expect(await new GooglePlaces("k", f).search({ lat: 13.08, lng: 80.21 }, 3000, "cafe")).toEqual([]);
+  });
 });
 
 describe("GoogleRoutes", () => {
@@ -42,5 +66,13 @@ describe("GoogleRoutes", () => {
 
   it("throws when driving has no route", async () => {
     await expect(new GoogleRoutes("k", jsonFetch(empty)).route({ lat: 1, lng: 1 }, { lat: 2, lng: 2 }, "own", new Date())).rejects.toThrow(/google/i);
+  });
+
+  it("stops calling Google for a while once the daily quota is exhausted", async () => {
+    const f = jsonFetch({ error: { status: "RESOURCE_EXHAUSTED" } }, 429);
+    const r = new GoogleRoutes("k", f);
+    await expect(r.route({ lat: 1, lng: 1 }, { lat: 2, lng: 2 }, "own", new Date())).rejects.toThrow(/429/);
+    await expect(r.route({ lat: 1, lng: 1 }, { lat: 2, lng: 2 }, "own", new Date())).rejects.toThrow(/quota/i);
+    expect(f).toHaveBeenCalledTimes(1);
   });
 });

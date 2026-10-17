@@ -11,8 +11,9 @@ import type { Providers } from "./types";
 
 export type { Providers } from "./types";
 
-// Shared across requests so its queue and cache throttle the whole server, not one call.
+// Shared across requests so throttling and quota backoff apply to the whole server, not one call.
 let overpass: OverpassPlaces | null = null;
+let google: { key: string; places: GooglePlaces; routes: GoogleRoutes } | null = null;
 
 export function getProviders(): Providers {
   if (fakesEnabled()) return fakeProviders();
@@ -21,8 +22,10 @@ export function getProviders(): Providers {
   const osrm = new OsrmRoutes();
   const key = process.env.GOOGLE_MAPS_API_KEY;
 
-  const places = key ? placesWithFallback(new GooglePlaces(key), osm) : placesWithFallback(osm, null);
-  const routes = key ? routesWithFallback(new GoogleRoutes(key), osrm) : routesWithFallback(osrm, null);
+  if (key && google?.key !== key) google = { key, places: new GooglePlaces(key), routes: new GoogleRoutes(key) };
+
+  const places = key && google ? placesWithFallback(google.places, osm) : placesWithFallback(osm, null);
+  const routes = key && google ? routesWithFallback(google.routes, osrm) : routesWithFallback(osrm, null);
 
   return {
     places,
